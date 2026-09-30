@@ -1,0 +1,26 @@
+[
+  {
+    "id": "palantir",
+    "company": "Palantir",
+    "ats": "lever",
+    "board": "palantir",
+    "referral": false,
+    "note": "Public example board; review requirements before applying."
+  },
+  {
+    "id": "netic",
+    "company": "Netic",
+    "ats": "ashby",
+    "board": "netic",
+    "referral": false,
+    "note": "Public example board; review requirements before applying."
+  },
+  {
+    "id": "twitch",
+    "company": "Twitch",
+    "ats": "greenhouse",
+    "board": "twitch",
+    "referral": false,
+    "note": "Public example board; review requirements before applying."
+  }
+]

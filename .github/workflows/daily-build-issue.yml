@@ -1,0 +1,24 @@
+name: Open the next build task
+
+on:
+  schedule:
+    - cron: "17 17 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+jobs:
+  next-task:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - run: node --import tsx scripts/open-next-build-issue.ts
+        env:
+          GITHUB_TOKEN: ${{ github.token }}

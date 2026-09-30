@@ -1,0 +1,27 @@
+name: Check
+
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "23 15 * * 1"
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+      - run: npm ci
+      - name: Use public example configuration
+        run: |
+          cp wrangler.example.jsonc wrangler.jsonc
+          cp src/company-sources.example.json src/company-sources.json
+      - run: npm run check
+      - run: npm run build

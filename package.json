@@ -1,0 +1,32 @@
+{
+  "name": "job-search-assistant",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "wrangler dev",
+    "typecheck": "tsc --noEmit",
+    "test": "node --import tsx --test test/*.test.ts",
+    "format": "prettier --write 'src/**/*.ts' 'scripts/**/*.ts' 'test/**/*.ts' README.md docs .github package.json tsconfig.json wrangler.example.jsonc src/company-sources.example.json",
+    "format:check": "prettier --check 'src/**/*.ts' 'scripts/**/*.ts' 'test/**/*.ts' README.md docs .github package.json tsconfig.json wrangler.example.jsonc src/company-sources.example.json",
+    "check": "npm run format:check && npm run typecheck && npm test",
+    "preview": "tsx scripts/preview.ts",
+    "snapshot:public": "node --import tsx scripts/public-board-snapshot.ts",
+    "admin": "tsx scripts/admin.ts",
+    "db:local": "wrangler d1 migrations apply job-search --local",
+    "db:remote": "wrangler d1 migrations apply job-search --remote",
+    "build": "wrangler deploy --dry-run",
+    "deploy": "wrangler deploy"
+  },
+  "dependencies": {
+    "@cloudflare/playwright": "latest"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "latest",
+    "@types/node": "^24.0.0",
+    "prettier": "^3.9.9",
+    "tsx": "^4.20.0",
+    "typescript": "^5.9.0",
+    "wrangler": "^4.0.0"
+  }
+}

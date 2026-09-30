@@ -1,0 +1,37 @@
+[
+  {
+    "title": "Explain the D1 data model",
+    "goal": "Add a small diagram and plain-language description of sources, jobs, existing Notion pages, and application attempts to docs/architecture.md.",
+    "done": "A reader can trace one posting from a company feed to its Notion page and see where duplicate prevention happens."
+  },
+  {
+    "title": "Add role-lane classification tests",
+    "goal": "Add focused tests for FDE, Applied AI, Startup SWE, ML / Data, and ambiguous job titles.",
+    "done": "npm run check passes and the tests catch a misclassified FDE or product-engineering title."
+  },
+  {
+    "title": "Make the start date configurable",
+    "goal": "Replace the hard-coded June 2027 availability in matching and profile validation with one typed setting, while keeping the current live default.",
+    "done": "The configured date is used consistently in matching, application checks, and tests."
+  },
+  {
+    "title": "Improve source coverage reporting",
+    "goal": "Show which company boards succeeded, failed, or need manual checks in a small, readable report generated from service status.",
+    "done": "A failed feed is visibly different from a feed with zero matching jobs."
+  },
+  {
+    "title": "Build a synthetic demo dataset",
+    "goal": "Create a small fake set of jobs and tracker rows that demonstrates the product without exposing personal Notion data.",
+    "done": "The example dataset can power a screenshot or local demo and contains no real applicant information."
+  },
+  {
+    "title": "Prototype a read-only web dashboard",
+    "goal": "Create a small frontend using the synthetic dataset to show role filters, fit reasons, source status, and application stages.",
+    "done": "A recruiter can open a local demo without a Notion account or private token."
+  },
+  {
+    "title": "Polish the recruiter demo",
+    "goal": "Add a screenshot or short walkthrough, accessibility checks, and a clear explanation of the project's tradeoffs.",
+    "done": "The README links to a demo artifact and explains what is real versus simulated."
+  }
+]

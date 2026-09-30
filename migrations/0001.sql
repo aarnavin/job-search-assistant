@@ -1,0 +1,16 @@
+CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL);
+CREATE TABLE private_data (key TEXT PRIMARY KEY, data TEXT NOT NULL);
+INSERT INTO settings VALUES ('paused','true'),('sync_enabled','false'),('email_enabled','false'),('apply_enabled','false');
+CREATE TABLE sources (id TEXT PRIMARY KEY, data TEXT NOT NULL, initialized INTEGER NOT NULL DEFAULT 0, last_success TEXT, last_error TEXT);
+CREATE TABLE jobs (id TEXT PRIMARY KEY, source_id TEXT NOT NULL, data TEXT NOT NULL, fit TEXT NOT NULL, reasons TEXT NOT NULL, first_seen TEXT NOT NULL, last_seen TEXT NOT NULL, baseline INTEGER NOT NULL, open INTEGER NOT NULL DEFAULT 1, notion_id TEXT, automation TEXT NOT NULL DEFAULT 'Review', needs_input INTEGER NOT NULL DEFAULT 1);
+CREATE INDEX jobs_source ON jobs(source_id);
+CREATE INDEX jobs_fit ON jobs(fit,open);
+CREATE TABLE existing_pages (id TEXT PRIMARY KEY, company TEXT NOT NULL, title TEXT NOT NULL, stage TEXT NOT NULL, source TEXT NOT NULL, links TEXT NOT NULL, referral INTEGER NOT NULL, archived INTEGER NOT NULL DEFAULT 0);
+CREATE TABLE identities (identity TEXT PRIMARY KEY, page_id TEXT NOT NULL);
+CREATE TABLE sync_writes (job_id TEXT PRIMARY KEY, state TEXT NOT NULL, page_id TEXT, error TEXT);
+CREATE TABLE attempts (id TEXT PRIMARY KEY, job_id TEXT NOT NULL, state TEXT NOT NULL, started_at TEXT NOT NULL, finished_at TEXT, reserved_seconds INTEGER NOT NULL, evidence TEXT, error TEXT);
+CREATE UNIQUE INDEX one_submission_attempt ON attempts(job_id);
+CREATE INDEX attempts_day ON attempts(started_at);
+CREATE TABLE digest (local_day TEXT PRIMARY KEY, state TEXT NOT NULL, since TEXT NOT NULL, created_at TEXT NOT NULL, sent_at TEXT, message_id TEXT, error TEXT);
+CREATE TABLE events (id INTEGER PRIMARY KEY AUTOINCREMENT, kind TEXT NOT NULL, detail TEXT NOT NULL, created_at TEXT NOT NULL);
+CREATE TABLE locks (name TEXT PRIMARY KEY, owner TEXT NOT NULL, expires INTEGER NOT NULL);

@@ -1,0 +1,38 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "job-search-assistant",
+  "main": "src/worker.ts",
+  "compatibility_date": "2026-09-01",
+  "compatibility_flags": ["nodejs_compat"],
+  "workers_dev": true,
+  "preview_urls": false,
+  "triggers": { "crons": ["17 */6 * * *", "*/15 * * * *"] },
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "job-search",
+      "database_id": "00000000-0000-0000-0000-000000000000",
+      "migrations_dir": "migrations",
+    },
+  ],
+  "queues": {
+    "producers": [{ "binding": "TASKS", "queue": "job-search-tasks" }],
+    "consumers": [
+      {
+        "queue": "job-search-tasks",
+        "max_batch_size": 1,
+        "max_concurrency": 1,
+        "max_retries": 2,
+        "dead_letter_queue": "job-search-failed",
+      },
+    ],
+  },
+  "browser": { "binding": "BROWSER" },
+  "vars": {
+    "NOTION_DATA_SOURCE_ID": "00000000-0000-0000-0000-000000000000",
+    "NOTION_TEMPLATE_ID": "00000000-0000-0000-0000-000000000000",
+    "DIGEST_EMAIL": "you@example.com",
+    "TIME_ZONE": "America/Los_Angeles",
+  },
+  "observability": { "enabled": false },
+}
