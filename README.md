@@ -2,7 +2,7 @@
 
 A job discovery and application workflow built with Cloudflare Workers, D1, Queues, Notion, and Brevo. It monitors employer career boards, explains why a role may fit, preserves the user's application history in Notion, and sends a daily review digest.
 
-The project began as a personal search for early-career ML, applied AI, forward-deployed, and software engineering roles. The public repository contains the implementation and example configuration. Live account IDs, tokens, resumes, application answers, and Notion records stay local or in service secrets.
+The project focuses on early-career machine learning, data science, applied science, and research roles. Forward-deployed **scientist** roles are included; general software and forward-deployed engineering roles are outside the search. The public repository contains the implementation and example configuration. Live account IDs, tokens, resumes, application answers, and Notion records stay local or in service secrets.
 
 ## How it works
 
@@ -21,7 +21,7 @@ flowchart LR
 
 The Worker scans supported boards every six hours. Each opening gets a stable identity from its employer job ID or posting URL. The first scan establishes a baseline; later scans can identify newly discovered roles without claiming to know when an employer posted them. A failed feed remains a visible coverage error and cannot silently close jobs.
 
-Matching is rule based and explainable. It checks location, role family, seniority, experience requirements, and start-date compatibility, then labels roles **Strong**, **Possible**, or **Skip** with reasons. Notion remains the dashboard: existing application stages and notes are preserved, company watchlist entries remain separate, and one page is created per new opening. The `Role Lane` property groups FDE / Deployment, Applied AI, Startup SWE, ML / Data, and Other roles.
+Matching is rule based and explainable. A role must contain explicit employer-posting evidence such as a new-graduate label, early-career label, or a 0–2-year minimum requirement. Missing descriptions, unsupported role families, and postings mentioning three or more years are held out of emails and new Notion listings. It also checks seniority, location, and start-date compatibility, then labels eligible roles **Strong** or **Possible** with reasons. Notion remains the dashboard: existing application history and notes are preserved, company watchlist entries remain separate, and one page is created per verified opening. The Role Lane property uses ML Engineering, Data Science, Applied Science, and Research.
 
 Application support is deliberately narrow. The Ashby adapter can preview a standard form with an approved profile. Unknown questions, essays, referrals, assessments, login requirements, and uncertain submission outcomes stop the workflow for review. Submission is disabled by default and requires profile and role approval. This is a prototype for a personal workflow, not a general-purpose applicant bot.
 
@@ -71,4 +71,4 @@ A second daily workflow opens [one small build task](.github/build-tasks.json) a
 
 ## Limits
 
-Only supported Ashby, Greenhouse, and Lever boards are scanned automatically. Custom career sites stay in a manual coverage list. Match labels are a shortlist for human review, not an eligibility verdict. The public repo has no live credentials, personal resume, or application history, so it cannot reproduce the owner's private Notion data.
+Only supported Ashby, Greenhouse, and Lever boards are scanned automatically. Custom career sites stay in a manual coverage list. Explicit posting language verifies the advertised level, but cannot guarantee a recruiter will accept an applicant or a June 2027 start when the posting gives no start date. The public repo has no live credentials, personal resume, or application history, so it cannot reproduce the owner's private Notion data.

@@ -1,5 +1,7 @@
 import type { Env, Job, JobRow } from "./types";
 import { setting } from "./store";
+import { rank } from "./matching";
+import { companyKey, identities, plainTitle } from "./identity";
 export function localClock(now: Date, zone = "America/Los_Angeles") {
   const parts = new Intl.DateTimeFormat("en-CA", {
     timeZone: zone,
@@ -23,8 +25,42 @@ export function escapeHtml(s: string) {
 }
 export async function digestContent(env: Env, since: string) {
   const jobs = await env.DB.prepare(
-    "SELECT * FROM jobs WHERE fit<>'Skip' AND open=1 ORDER BY first_seen DESC",
+    "SELECT * FROM jobs WHERE open=1 ORDER BY first_seen DESC",
   ).all<JobRow>();
+  const existing = await env.DB.prepare(
+    "SELECT id,company,title,stage,links FROM existing_pages WHERE archived=0",
+  ).all<{
+    id: string;
+    company: string;
+    title: string;
+    stage: string;
+    links: string;
+  }>();
+  const completed = existing.results.filter(
+    (p) => p.stage && p.stage !== "To apply",
+  );
+  const completedIds = new Set(completed.map((p) => p.id));
+  const completedLinks = new Set(
+    completed.flatMap((p) => identities(JSON.parse(p.links))),
+  );
+  const completedTitles = new Set(
+    completed.map((p) => companyKey(p.company) + ":" + plainTitle(p.title)),
+  );
+  const eligible = jobs.results.filter((row) => {
+    const job: Job = JSON.parse(row.data);
+    const fit = rank(job);
+    if (!fit.earlyCareerVerified || fit.label === "Skip") return false;
+    if (row.notion_id && completedIds.has(row.notion_id)) return false;
+    if (
+      identities([job.url, job.applyUrl]).some((id) => completedLinks.has(id))
+    )
+      return false;
+    if (
+      completedTitles.has(companyKey(job.company) + ":" + plainTitle(job.title))
+    )
+      return false;
+    return true;
+  });
   const submissions = await env.DB.prepare(
     "SELECT job_id,finished_at FROM attempts WHERE state='confirmed' AND finished_at>? ORDER BY finished_at",
   )
@@ -42,10 +78,13 @@ export async function digestContent(env: Env, since: string) {
   )
     .bind(since)
     .all<{ kind: string; detail: string }>();
-  const strong = jobs.results.filter(
-    (j) => j.fit === "Strong" && !j.baseline && j.first_seen > since,
+  const strong = eligible.filter(
+    (j) =>
+      rank(JSON.parse(j.data)).label === "Strong" &&
+      !j.baseline &&
+      j.first_seen > since,
   );
-  const review = jobs.results.filter(
+  const review = eligible.filter(
     (j) => j.needs_input && !["Submitted", "Existing"].includes(j.automation),
   );
   const link = (r: JobRow) => {

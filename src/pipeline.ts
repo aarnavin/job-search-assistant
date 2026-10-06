@@ -33,7 +33,7 @@ export async function scan(env: Env, sourceId: string) {
     );
     const relevant = jobs
       .map((job) => ({ job, fit: rank(job) }))
-      .filter(({ job, fit }) => fit.label !== "Skip" || tracked.has(job.id));
+      .filter(({ job, fit }) => fit.earlyCareerVerified || tracked.has(job.id));
     if (relevant.length > 400)
       throw new Error(
         "Source exceeds the free-tier processing batch; manual check required",
@@ -106,6 +106,8 @@ export async function syncJob(env: Env, id: string) {
     throw new Error("Fresh Notion import required before sync");
   const row = await jobRow(env, id);
   if (!row || row.notion_id || !row.open || row.fit === "Skip") return;
+  const currentFit = rank(JSON.parse(row.data));
+  if (!currentFit.earlyCareerVerified || currentFit.label === "Skip") return;
   const owner = await lock(env, `sync:${id}`);
   if (!owner) return;
   try {
@@ -150,7 +152,7 @@ export async function syncJob(env: Env, id: string) {
     const notion = new Notion(env);
     const page = await notion.create(
       job,
-      rank(job),
+      currentFit,
       row.first_seen,
       !!row.baseline,
       `Job identity: ${id}`,

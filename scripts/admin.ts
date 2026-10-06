@@ -22,6 +22,26 @@ switch (command) {
     path = "/existing";
     method = "GET";
     break;
+  case "cleanup-preview":
+    path = "/cleanup-preview";
+    method = "GET";
+    break;
+  case "reclassify":
+    path = "/maintenance";
+    body = { action: "reclassify" };
+    break;
+  case "reject-vals":
+    path = "/maintenance";
+    body = { action: "reject-vals", pageId: args[0] };
+    break;
+  case "archive-unverified":
+    path = "/maintenance";
+    body = {
+      action: "archive-unverified",
+      pageId: args[0],
+      expectedTitle: args[1],
+    };
+    break;
   case "shortlist":
     path = "/shortlist";
     method = "GET";

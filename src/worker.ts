@@ -6,6 +6,12 @@ import { rank, roleLane } from "./matching";
 import { scan, syncJob } from "./pipeline";
 import { duplicate, event, importPages, setSetting, setting } from "./store";
 import { profileProblems } from "./forms";
+import {
+  archiveUnverified,
+  cleanupPreview,
+  reclassifyJobs,
+  rejectVals,
+} from "./maintenance";
 import type { Env, Profile, Source, Task } from "./types";
 const json = (value: unknown, status = 200) =>
   Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
@@ -130,6 +136,8 @@ export default {
             ).all()
           ).results,
         );
+      if (request.method === "GET" && path === "/cleanup-preview")
+        return json(await cleanupPreview(env));
       if (request.method === "GET" && path === "/shortlist") {
         const rows = await env.DB.prepare(
           "SELECT id,data,fit,reasons,first_seen,baseline FROM jobs WHERE open=1 AND fit<>'Skip'",
@@ -145,7 +153,7 @@ export default {
         for (const row of rows.results) {
           const job = JSON.parse(row.data);
           const fit = rank(job);
-          if (!fit.bayArea) continue;
+          if (!fit.bayArea || !fit.earlyCareerVerified) continue;
           const existing = await duplicate(
             env,
             [job.url, job.applyUrl],
@@ -160,8 +168,8 @@ export default {
             location: job.location,
             url: job.url,
             applyUrl: job.applyUrl,
-            fit: row.fit,
-            reasons: JSON.parse(row.reasons),
+            fit: fit.label,
+            reasons: fit.reasons,
             firstFound: row.first_seen,
             baseline: !!row.baseline,
             priority: fit.priority,
@@ -177,9 +185,11 @@ export default {
         return json(
           (
             await env.DB.prepare(
-              "SELECT * FROM jobs WHERE fit<>'Skip' ORDER BY fit DESC,first_seen DESC",
+              "SELECT * FROM jobs WHERE open=1 ORDER BY first_seen DESC",
             ).all()
-          ).results,
+          ).results.filter(
+            (row: any) => rank(JSON.parse(row.data)).earlyCareerVerified,
+          ),
         );
       if (request.method === "GET" && path === "/digest-preview")
         return new Response(
@@ -198,6 +208,21 @@ export default {
         );
       if (request.method !== "POST") return json({ error: "Not found" }, 404);
       const body = (await request.json()) as any;
+      if (path === "/maintenance") {
+        if (body.action === "reclassify")
+          return json(await reclassifyJobs(env));
+        if (body.action === "reject-vals" && typeof body.pageId === "string")
+          return json(await rejectVals(env, body.pageId));
+        if (
+          body.action === "archive-unverified" &&
+          typeof body.pageId === "string" &&
+          typeof body.expectedTitle === "string"
+        )
+          return json(
+            await archiveUnverified(env, body.pageId, body.expectedTitle),
+          );
+        return json({ error: "Unsupported maintenance action" }, 400);
+      }
       if (path === "/setup") {
         await bootstrap(env);
         if (env.NOTION_TOKEN) {
@@ -309,6 +334,7 @@ export default {
             const fit = rank(job);
             if (
               !fit.bayArea ||
+              !fit.earlyCareerVerified ||
               (await duplicate(
                 env,
                 [job.url, job.applyUrl],

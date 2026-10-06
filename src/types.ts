@@ -27,6 +27,7 @@ export type Fit = {
   reasons: string[];
   bayArea: boolean;
   priority: number;
+  earlyCareerVerified: boolean;
 };
 export type Answer = { value: string; verified: boolean };
 export type Profile = {

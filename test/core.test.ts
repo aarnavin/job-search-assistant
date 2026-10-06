@@ -11,6 +11,7 @@ import { parseJobs, fetchJobs } from "../src/sources";
 import { planFields, profileProblems } from "../src/forms";
 import { localClock, escapeHtml } from "../src/digest";
 import { job, profile } from "./helpers";
+import { assessListing } from "../src/maintenance";
 test("identity matches ATS links across tracking parameters and application suffixes", () => {
   assert.equal(
     jobIdentity(
@@ -49,7 +50,7 @@ test("matches target roles but flags geography, seniority, internships and incom
   assert.equal(
     rank(job({ description: "Python SQL. 3 years of experience required." }))
       .label,
-    "Possible",
+    "Skip",
   );
   assert.equal(
     rank(job({ description: "Python SQL. 5 years of experience required." }))
@@ -85,7 +86,90 @@ test("matches target roles but flags geography, seniority, internships and incom
     rank(
       job({ title: "Machine Learning Engineer", description: "Python SQL." }),
     ).label,
-    "Possible",
+    "Skip",
+  );
+});
+test("only employer-verified early-career roles in the chosen fields qualify", () => {
+  assert.equal(
+    rank(job({ title: "Data Scientist 2027", description: "Python SQL." }))
+      .label,
+    "Skip",
+  );
+  assert.equal(
+    rank(
+      job({
+        title: "Data Scientist",
+        description: "Python SQL. 2+ years of experience.",
+      }),
+    ).earlyCareerVerified,
+    true,
+  );
+  assert.equal(
+    rank(job({ title: "Data Scientist, New Grad", description: "" })).label,
+    "Skip",
+  );
+  assert.equal(
+    rank(job({ title: "Software Engineer, New Grad" })).label,
+    "Skip",
+  );
+  assert.equal(
+    rank(job({ title: "Forward Deployed Engineer, New Grad" })).label,
+    "Skip",
+  );
+  const bcg = rank(
+    job({
+      title: "Forward Deployed AI Scientist, Campus",
+      description: "Early career role. Python SQL machine learning.",
+    }),
+  );
+  assert.equal(bcg.label, "Strong");
+  assert.equal(bcg.earlyCareerVerified, true);
+  assert.equal(
+    rank(job({ title: "Research Scientist, New Grad" })).label,
+    "Strong",
+  );
+  assert.equal(
+    rank(
+      job({
+        description:
+          "Python SQL. 1 year experience. 4+ years in production systems.",
+      }),
+    ).label,
+    "Skip",
+  );
+});
+test("Notion cleanup preserves history and watchlists but removes unverified active listings", () => {
+  const page = {
+    id: "page",
+    company: "Test",
+    title: "Data Scientist, New Grad 2027",
+    stage: "To apply",
+    source: "company board",
+    links: ["https://jobs.ashbyhq.com/test/123"],
+    referral: false,
+  };
+  const tracked = [
+    { id: job().id, data: JSON.stringify(job()), notion_id: "page", open: 1 },
+  ];
+  assert.equal(assessListing(page, tracked).action, "keep");
+  assert.equal(
+    assessListing({ ...page, stage: "Applied" }, []).action,
+    "preserve",
+  );
+  assert.equal(assessListing({ ...page, title: "" }, []).action, "preserve");
+  assert.equal(assessListing(page, []).action, "archive");
+  assert.equal(
+    assessListing(page, [
+      {
+        ...tracked[0],
+        data: JSON.stringify(job({ title: "Software Engineer, New Grad" })),
+      },
+    ]).action,
+    "archive",
+  );
+  assert.equal(
+    assessListing(page, [{ ...tracked[0], open: 0 }]).action,
+    "archive",
   );
 });
 test("adapters reject malformed responses and do not invent posting dates", () => {

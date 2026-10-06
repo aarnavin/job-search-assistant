@@ -6,8 +6,8 @@
   },
   {
     "title": "Add role-lane classification tests",
-    "goal": "Add focused tests for FDE, Applied AI, Startup SWE, ML / Data, and ambiguous job titles.",
-    "done": "npm run check passes and the tests catch a misclassified FDE or product-engineering title."
+    "goal": "Add focused tests for ML Engineering, Data Science, Applied Science, Research, ambiguous job titles, and the forward-deployed scientist exception.",
+    "done": "npm run check passes and the tests reject generic SWE/FDE openings while keeping clearly early-career scientist roles."
   },
   {
     "title": "Make the start date configurable",

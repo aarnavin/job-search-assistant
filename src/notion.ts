@@ -33,10 +33,10 @@ export const extraProperties = {
   "Role Lane": {
     select: {
       options: [
-        "FDE / Deployment",
-        "Applied AI",
-        "Startup SWE",
-        "ML / Data",
+        "ML Engineering",
+        "Data Science",
+        "Applied Science",
+        "Research",
         "Other",
       ].map((name) => ({ name })),
     },
@@ -189,6 +189,14 @@ export class Notion {
     await this.call(`pages/${id}`, "PATCH", {
       properties: { "Role Lane": { select: { name: lane } } },
     });
+  }
+  async setStage(id: string, stage: string) {
+    await this.call("pages/" + id, "PATCH", {
+      properties: { Stage: { status: { name: stage } } },
+    });
+  }
+  async archive(id: string) {
+    await this.call("pages/" + id, "PATCH", { in_trash: true });
   }
   async note(id: string, text: string) {
     await this.call(`blocks/${id}/children`, "PATCH", {

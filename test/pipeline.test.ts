@@ -2,13 +2,13 @@ import { test } from "node:test";
 import assert from "node:assert/strict";
 import { scan, syncJob } from "../src/pipeline";
 import { importPages, referralHold, setSetting, lock } from "../src/store";
-import { sendDigest } from "../src/digest";
-import { environment } from "./helpers";
+import { digestContent, sendDigest } from "../src/digest";
+import { environment, job } from "./helpers";
 const source = { id: "test", company: "Test", ats: "ashby", board: "test" };
 const feed = (ids: string[]) => ({
   jobs: ids.map((id) => ({
     id,
-    title: "Data Scientist 2027",
+    title: "Data Scientist, New Grad 2027",
     jobUrl: `https://jobs.ashbyhq.com/test/${id}`,
     applyUrl: `https://jobs.ashbyhq.com/test/${id}/application`,
     location: "San Francisco",
@@ -174,4 +174,53 @@ test("daily digest retries explicit rate limits but not uncertain delivery", asy
     globalThis.fetch = original;
     db.close();
   }
+});
+test("digest excludes unverified roles, software roles, and prior applications even with stale fit labels", async () => {
+  const { env, db } = await setup();
+  const valid = job();
+  const unknown = job({
+    id: "ashby:test:unknown",
+    title: "Data Scientist 2027",
+    url: "https://jobs.ashbyhq.com/test/unknown",
+    applyUrl: "https://jobs.ashbyhq.com/test/unknown/application",
+    description: "Python SQL.",
+  });
+  const software = job({
+    id: "ashby:test:software",
+    title: "Software Engineer, New Grad",
+    url: "https://jobs.ashbyhq.com/test/software",
+    applyUrl: "https://jobs.ashbyhq.com/test/software/application",
+  });
+  for (const j of [valid, unknown, software])
+    db.prepare(
+      "INSERT INTO jobs(id,source_id,data,fit,reasons,first_seen,last_seen,baseline,open) VALUES(?,?,?,?,?,?,?,?,1)",
+    ).run(
+      j.id,
+      "test",
+      JSON.stringify(j),
+      "Strong",
+      "[]",
+      "2027-07-01T00:00:00Z",
+      "2027-07-01T00:00:00Z",
+      0,
+    );
+  const since = "2027-06-30T00:00:00Z";
+  const before = await digestContent(env, since);
+  assert.match(before, /Strong new matches \(1\)/);
+  assert.doesNotMatch(before, /Data Scientist 2027<\/a>/);
+  assert.doesNotMatch(before, /Software Engineer, New Grad/);
+  await importPages(env, [
+    {
+      id: "applied",
+      company: valid.company,
+      title: valid.title,
+      stage: "Applied",
+      source: "LinkedIn",
+      links: [valid.url],
+      referral: false,
+    },
+  ]);
+  const after = await digestContent(env, since);
+  assert.match(after, /Strong new matches \(0\)/);
+  db.close();
 });
