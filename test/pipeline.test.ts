@@ -206,8 +206,9 @@ test("digest excludes unverified roles, software roles, and prior applications e
     );
   const since = "2027-06-30T00:00:00Z";
   const before = await digestContent(env, since);
-  assert.match(before, /Strong new matches \(1\)/);
-  assert.match(before, /Needs your input \(0\)/);
+  assert.match(before, /New matches \(1\)/);
+  assert.doesNotMatch(before, /Action needed/);
+  assert.doesNotMatch(before, /Coverage and failures|Service notices/);
   assert.doesNotMatch(before, /Data Scientist 2027<\/a>/);
   assert.doesNotMatch(before, /Software Engineer, New Grad/);
   await importPages(env, [
@@ -222,6 +223,25 @@ test("digest excludes unverified roles, software roles, and prior applications e
     },
   ]);
   const after = await digestContent(env, since);
-  assert.match(after, /Strong new matches \(0\)/);
+  assert.doesNotMatch(after, /New matches/);
+  db.close();
+});
+test("digest shows a short alert only for failed automated feeds", async () => {
+  const { env, db } = await setup();
+  db.prepare("UPDATE sources SET last_error='HTTP 503' WHERE id='test'").run();
+  db.prepare("INSERT INTO sources(id,data,last_error) VALUES(?,?,?)").run(
+    "manual",
+    JSON.stringify({
+      id: "manual",
+      company: "Manual Company",
+      ats: "manual",
+      careerUrl: "https://example.com/careers",
+    }),
+    "Manual career-site check required",
+  );
+  const content = await digestContent(env, "2027-06-30T00:00:00Z");
+  assert.match(content, /Tracker alert/);
+  assert.match(content, /Couldn’t check Test today/);
+  assert.doesNotMatch(content, /HTTP 503|Manual Company|Service notices/);
   db.close();
 });

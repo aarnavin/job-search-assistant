@@ -67,17 +67,10 @@ export async function digestContent(env: Env, since: string) {
     .bind(since)
     .all<{ job_id: string; finished_at: string }>();
   const failures = await env.DB.prepare(
-    "SELECT data,last_error,last_success FROM sources WHERE last_error IS NOT NULL OR initialized=0",
+    "SELECT data FROM sources WHERE last_error IS NOT NULL",
   ).all<{
     data: string;
-    last_error: string | null;
-    last_success: string | null;
   }>();
-  const notices = await env.DB.prepare(
-    "SELECT kind,detail FROM events WHERE created_at>? ORDER BY id DESC LIMIT 30",
-  )
-    .bind(since)
-    .all<{ kind: string; detail: string }>();
   const strong = eligible.filter(
     (j) =>
       rank(JSON.parse(j.data)).label === "Strong" &&
@@ -92,19 +85,27 @@ export async function digestContent(env: Env, since: string) {
   );
   const link = (r: JobRow) => {
     const j: Job = JSON.parse(r.data);
-    return `<li><a href="${escapeHtml(j.url)}">${escapeHtml(j.company + " — " + j.title)}</a> (${escapeHtml(j.location)})${r.notion_id ? ` · <a href="https://www.notion.so/${r.notion_id.replaceAll("-", "")}">Notion</a>` : ""}<br>${escapeHtml(JSON.parse(r.reasons).join("; "))}${r.baseline ? " · Existing opening from baseline" : ""}</li>`;
+    return `<li><a href="${escapeHtml(j.url)}">${escapeHtml(j.company + " — " + j.title)}</a> · ${escapeHtml(j.location)}${r.notion_id ? ` · <a href="https://www.notion.so/${r.notion_id.replaceAll("-", "")}">Notion</a>` : ""}</li>`;
   };
-  return `<h1>Your job search — ${localClock(new Date(), env.TIME_ZONE).day}</h1><h2>Confirmed submissions (${submissions.results.length})</h2><ul>${submissions.results.map((s) => `<li>${escapeHtml(s.job_id)} — ${escapeHtml(s.finished_at)}</li>`).join("")}</ul><h2>Strong new matches (${strong.length})</h2><ul>${strong.slice(0, 30).map(link).join("")}</ul><h2>Needs your input (${review.length})</h2><p>Showing up to 30. Your full queue is in Notion.</p><ul>${review.slice(0, 30).map(link).join("")}</ul><h2>Coverage and failures</h2><ul>${failures.results
-    .map((s) => {
-      const data = JSON.parse(s.data);
-      return `<li>${escapeHtml(data.company)}: ${escapeHtml(data.ats === "manual" ? data.note : (s.last_error ?? "Initial scan not completed"))}</li>`;
-    })
-    .join("")}</ul><h2>Service notices</h2><ul>${notices.results
-    .filter((n) => !["notion_created"].includes(n.kind))
-    .map((n) => `<li>${escapeHtml(n.kind + ": " + n.detail)}</li>`)
-    .join(
-      "",
-    )}</ul><p>Start availability: June 1, 2027. A missing posting date is never treated as a new posting.</p>`;
+  const failedCompanies = failures.results
+    .map((s) => JSON.parse(s.data) as { company: string; ats: string })
+    .filter((s) => s.ats !== "manual")
+    .map((s) => s.company);
+  const sections = [
+    submissions.results.length
+      ? `<h2>Applied (${submissions.results.length})</h2><ul>${submissions.results.map((s) => `<li>${escapeHtml(s.job_id)}</li>`).join("")}</ul>`
+      : "",
+    strong.length
+      ? `<h2>New matches (${strong.length})</h2><ul>${strong.slice(0, 30).map(link).join("")}</ul>`
+      : "",
+    review.length
+      ? `<h2>Action needed (${review.length})</h2><ul>${review.slice(0, 30).map(link).join("")}</ul>`
+      : "",
+    failedCompanies.length
+      ? `<p><strong>Tracker alert:</strong> Couldn’t check ${escapeHtml(failedCompanies.join(", "))} today, so some jobs may be missing.</p>`
+      : "",
+  ].filter(Boolean);
+  return `<h1>Job update · ${localClock(new Date(), env.TIME_ZONE).day}</h1>${sections.join("") || "<p>No new matches or actions today.</p>"}`;
 }
 export async function sendDigest(env: Env, now = new Date()) {
   if (
