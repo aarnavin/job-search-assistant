@@ -57,9 +57,9 @@ function experienceYears(text: string): number[] {
   return years;
 }
 
-function earlyCareerEvidence(title: string, text: string, years: number[]) {
+function earlyCareerEvidence(title: string, text: string) {
   const explicit =
-    /\b(?:new(?:ly)?[ -]?grad(?:uate)?|recent[ -]?grad(?:uate)?|college[ -]?grad(?:uate)?|early[ -]?career|entry[ -]?level|graduate (?:role|program|position|hire)|campus (?:hire|recruit(?:ing|ment)|graduate)|junior)\b/i;
+    /\b(?:new(?:ly)?[ -]?grad(?:uate)?|recent[ -]?grad(?:uate)?|college[ -]?grad(?:uate)?|early[ -]?career|entry[ -]?level|graduate (?:role|program|position|hire)|campus (?:hire|recruit(?:ing|ment)|graduate))\b/i;
   const graduation =
     /\b(?:2027\s+(?:graduate|grad)|(?:graduating|graduates|class of)\s+(?:in\s+)?2027)\b/i;
   const associateTitle =
@@ -68,7 +68,7 @@ function earlyCareerEvidence(title: string, text: string, years: number[]) {
     title.match(explicit) ??
     title.match(graduation) ??
     title.match(associateTitle) ??
-    title.match(/\b(?:graduate|campus)\b/i);
+    title.match(/\b(?:university grad|graduate|campus|junior)\b/i);
   if (titleMatch) return "Employer title says “" + titleMatch[0] + "”";
   const bodyMatch = text.match(explicit) ?? text.match(graduation);
   if (bodyMatch) return "Employer description says “" + bodyMatch[0] + "”";
@@ -78,10 +78,23 @@ function earlyCareerEvidence(title: string, text: string, years: number[]) {
     )
   )
     return "Employer says no prior experience is required";
-  if (years.some((year) => year <= 2))
+  const lowYearMatches = [
+    ...text.matchAll(
+      /\b([012])(?:\s*[-–]\s*[012])?\s*\+?\s*years?\s+(?:of\s+)?(?:professional\s+|relevant\s+|research\s+|industry\s+|working\s+|hands-on\s+|work\s+)?experience\b/gi,
+    ),
+  ].filter((match) => {
+    const before = text.slice(
+      Math.max(0, (match.index ?? 0) - 100),
+      match.index,
+    );
+    return !/(?:nice to have|preferred|bonus|desirable|ideally)[^.!?]{0,100}$/i.test(
+      before,
+    );
+  });
+  if (lowYearMatches.length)
     return (
       "Employer lists " +
-      Math.min(...years) +
+      Math.min(...lowYearMatches.map((match) => Number(match[1]))) +
       " year(s) as a minimum experience level"
     );
   return null;
@@ -96,7 +109,7 @@ export function rank(job: Job): Fit {
       job.location,
     );
   const years = experienceYears(text);
-  const evidence = earlyCareerEvidence(job.title, job.description, years);
+  const evidence = earlyCareerEvidence(job.title, job.description);
   const reasons: string[] = [];
   let label: Fit["label"] = "Strong";
   const possible = (reason: string) => {
@@ -118,11 +131,12 @@ export function rank(job: Job): Fit {
   )
     skip("Software or deployment engineering is outside the current search");
   if (
-    /\b(?:senior|sr\.?|staff|principal|director|manager|lead|head of|iii|iv)\b/.test(
+    /\b(?:senior|sr\.?|staff|principal|director|manager|lead|head of|ii|iii|iv)\b/.test(
       title,
     )
   )
     skip("Senior or leadership title");
+  if (/\bph\.?d\.?\b/.test(title)) skip("PhD-specific title");
   if (
     /intern(?:ship)?\b|contract|part.time|temporary/i.test(
       job.employmentType + " " + title,
@@ -139,11 +153,21 @@ export function rank(job: Job): Fit {
       "Posting mentions at least three years of experience; hold for manual review",
     );
   if (
-    /(?:ph\.?d\.?|doctorate)\s+(?:is\s+)?required|required[^.!\n]{0,35}(?:ph\.?d\.?|doctorate)/.test(
+    /(?:ph\.?d\.?|doctorate)[^.!\n]{0,70}required|required[^.!\n]{0,35}(?:ph\.?d\.?|doctorate)/.test(
+      text,
+    ) &&
+    !/(?:m\.?sc?\.?|master.?s)[^.!\n]{0,25}\bor\b[^.!\n]{0,20}(?:ph\.?d\.?|doctorate)/.test(
       text,
     )
   )
     skip("Doctorate explicitly required");
+  if (
+    /\b(?:ph\.?d\.?|doctorate)\s+in\b/.test(text) &&
+    !/(?:m\.?sc?\.?|master.?s)[^.!\n]{0,25}\bor\b[^.!\n]{0,20}(?:ph\.?d\.?|doctorate)/.test(
+      text,
+    )
+  )
+    skip("Doctorate-only qualification");
   if (
     /(?:start|join|available)[^.!\n]{0,45}(?:immediately|asap|within \d+ (?:weeks|days)|2026)/.test(
       text,
@@ -161,14 +185,26 @@ export function rank(job: Job): Fit {
     )
   )
     skip("Early-2027 start precedes availability");
+  const graduation2026 = text.match(
+    /(?:graduat\w*|degree)[^.!\n]{0,60}(?:by|before|in)\s+(?:\w+\s+)?2026/,
+  );
   if (
-    /(?:graduat\w*|degree)[^.!\n]{0,60}(?:by|before|in)\s+(?:\w+\s+)?2026/.test(
-      text,
+    graduation2026 &&
+    !/^\s*(?:or|through|to|[-–])\s+(?:\w+\s+)?2027\b/.test(
+      text.slice(
+        (graduation2026.index ?? 0) + graduation2026[0].length,
+        (graduation2026.index ?? 0) + graduation2026[0].length + 40,
+      ),
     )
   )
     skip("Graduation window excludes May 2027");
   if (/\bph\.?d\.?\b|doctorate/.test(text))
     possible("Check degree requirements and alternatives");
+  if (
+    /\bmaster.?s university grad\b/.test(title) ||
+    /\bm\.?sc\.?\s+or\s+ph\.?d\.?\b/.test(text)
+  )
+    possible("Confirm graduate-degree requirement");
   if (!evidence)
     skip(
       "No explicit new-grad, early-career, or 0–2-year evidence in the employer posting",

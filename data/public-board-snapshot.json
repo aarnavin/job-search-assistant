@@ -1,4 +1,125 @@
 {
   "schemaVersion": 1,
-  "jobs": []
+  "jobs": [
+    {
+      "id": "ashby:applied:091ed808-95c9-420b-8061-0ff2eb9342bc",
+      "company": "Applied Intuition",
+      "title": "Research Engineer - AI/RL Infrastructure",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/091ed808-95c9-420b-8061-0ff2eb9342bc",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:129325ce-77e6-4d2a-a24a-6726acb53749",
+      "company": "Applied Intuition",
+      "title": "Machine Learning Engineer - Behavior and Planning",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/129325ce-77e6-4d2a-a24a-6726acb53749",
+      "fit": "Strong"
+    },
+    {
+      "id": "ashby:applied:36a49d01-e60f-4c01-8c8c-5a7f79347f51",
+      "company": "Applied Intuition",
+      "title": "Research Engineer - Reinforcement Learning, Self-Driving",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/36a49d01-e60f-4c01-8c8c-5a7f79347f51",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:39846b2a-1f0e-4f97-b463-75fd37f217ce",
+      "company": "Applied Intuition",
+      "title": "Research Scientist (Research)",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/39846b2a-1f0e-4f97-b463-75fd37f217ce",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:45fc41cd-8280-4010-ba1f-def6114b3e39",
+      "company": "Applied Intuition",
+      "title": "Research Engineer - New Grad (2027)",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/45fc41cd-8280-4010-ba1f-def6114b3e39",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:4cb44794-7b3b-46fc-9408-104a6d0f379e",
+      "company": "Applied Intuition",
+      "title": "Research Engineer - Robotic Hardware, Simulation and Data",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/4cb44794-7b3b-46fc-9408-104a6d0f379e",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:52a070cf-4e1b-4fcc-bf73-727da8fb6d46",
+      "company": "Applied Intuition",
+      "title": "Research Scientist - Reinforcement Learning, Robotics",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/52a070cf-4e1b-4fcc-bf73-727da8fb6d46",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:5f15c171-ae5a-496b-a8eb-c6a351d55b6b",
+      "company": "Applied Intuition",
+      "title": "Research Scientist - 3D Vision and Generation, Self-Driving",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/5f15c171-ae5a-496b-a8eb-c6a351d55b6b",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:8da87c90-49ff-4b75-97c5-337882f63a00",
+      "company": "Applied Intuition",
+      "title": "Research Engineer - 3D Vision and Generation, Self-Driving",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/8da87c90-49ff-4b75-97c5-337882f63a00",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:a6c99f37-545a-46f2-8222-02ad43c1e2c3",
+      "company": "Applied Intuition",
+      "title": "Research Scientist - World-Action Foundation Model, Robotics",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/a6c99f37-545a-46f2-8222-02ad43c1e2c3",
+      "fit": "Possible"
+    },
+    {
+      "id": "ashby:applied:e725018e-2577-4ff6-8dbd-69206272d9af",
+      "company": "Applied Intuition",
+      "title": "Research Engineer - Robot Learning",
+      "location": "Sunnyvale",
+      "url": "https://jobs.ashbyhq.com/applied/e725018e-2577-4ff6-8dbd-69206272d9af",
+      "fit": "Possible"
+    },
+    {
+      "id": "greenhouse:pinterest:6121450",
+      "company": "Pinterest",
+      "title": "Machine Learning Engineer, Core Engineering",
+      "location": "San Francisco, CA, US; Palo Alto, CA, US; Seattle, WA, US; Remote, US",
+      "url": "https://www.pinterestcareers.com/jobs/?gh_jid=6121450",
+      "fit": "Possible"
+    },
+    {
+      "id": "greenhouse:pinterest:6121543",
+      "company": "Pinterest",
+      "title": "Machine Learning Engineer, Monetization Engineering",
+      "location": "San Francisco, CA, US; Palo Alto, CA, US; Seattle, WA, US",
+      "url": "https://www.pinterestcareers.com/jobs/?gh_jid=6121543",
+      "fit": "Strong"
+    },
+    {
+      "id": "greenhouse:pinterest:8140219",
+      "company": "Pinterest",
+      "title": "Master's University Grad Machine Learning Engineer 2027 (USA)",
+      "location": "San Francisco, CA, US; Palo Alto, CA, US; Seattle, WA, US; New York, NY, US",
+      "url": "https://www.pinterestcareers.com/jobs/?gh_jid=8140219",
+      "fit": "Possible"
+    },
+    {
+      "id": "greenhouse:pinterest:8140389",
+      "company": "Pinterest",
+      "title": "Master's University Grad Data Scientist (USA)",
+      "location": "San Francisco, CA, US; Palo Alto, CA, US; Seattle, WA, US; New York, NY, US",
+      "url": "https://www.pinterestcareers.com/jobs/?gh_jid=8140389",
+      "fit": "Possible"
+    }
+  ]
 }

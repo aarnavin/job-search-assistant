@@ -13,6 +13,8 @@ This guide describes a new installation. The local `wrangler.jsonc`, `src/compan
 
 After changing matching rules, temporarily disable email and sync, deploy, run the reclassify admin command, and review the cleanup preview. Archive only the active pages listed there; existing application history and company-only watchlists remain in Notion. The protected cleanup command checks the current page stage, title, and posting evidence again before archiving. Recheck the cleanup and digest previews before enabling sync and email again.
 
+For a reviewed opening from an initial board scan, use the individual sync-job admin command with its tracker job ID. This adds only that opening to Notion; a new board's baseline is never treated as a batch of newly posted jobs.
+
 The scheduled digest sends once per Pacific local day at or after 8 a.m. A timeout after the email API call is marked uncertain because delivery may have succeeded. Check Brevo before retrying. Feed errors are visible in `status`; an incomplete scan never closes jobs.
 
 Application automation stays disabled until a profile has been fact-checked and an individual role reviewed. `fill-preview JOB_ID` fills a supported Ashby form without submitting. An uncertain submission must be reconciled manually before any retry. `pause` stops new processing; a queued application also checks pause immediately before submission.

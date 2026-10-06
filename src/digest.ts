@@ -85,7 +85,10 @@ export async function digestContent(env: Env, since: string) {
       j.first_seen > since,
   );
   const review = eligible.filter(
-    (j) => j.needs_input && !["Submitted", "Existing"].includes(j.automation),
+    (j) =>
+      j.notion_id &&
+      j.needs_input &&
+      !["Submitted", "Existing"].includes(j.automation),
   );
   const link = (r: JobRow) => {
     const j: Job = JSON.parse(r.data);

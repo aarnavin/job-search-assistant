@@ -65,7 +65,7 @@ docs/                Operations and design notes
 
 ## Automated maintenance
 
-GitHub Actions checks the project on pushes and pull requests and runs a weekly scheduled check. Dependabot proposes weekly dependency updates. A daily workflow refreshes [`data/public-board-snapshot.json`](data/public-board-snapshot.json) from three public example boards and commits only when the actual relevant openings change. These bot-authored commits show real source changes; they are not backdated or a substitute for authored engineering work. The live personal job discovery schedule runs in Cloudflare and writes to Notion, not to GitHub.
+GitHub Actions checks the project on pushes and pull requests and runs a weekly scheduled check. Dependabot proposes weekly dependency updates. A daily workflow refreshes [`data/public-board-snapshot.json`](data/public-board-snapshot.json) from five public example boards and commits only when the actual relevant openings change. These bot-authored commits show real source changes; they are not backdated or a substitute for authored engineering work. The live personal job discovery schedule runs in Cloudflare and writes to Notion, not to GitHub.
 
 A second daily workflow opens [one small build task](.github/build-tasks.json) at a time. Finishing the task and closing its issue unlocks the next one. This gives the owner a steady path to real commits and visible progress without flooding the repo with artificial changes.
 

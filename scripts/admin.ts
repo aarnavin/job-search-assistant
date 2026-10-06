@@ -85,6 +85,10 @@ switch (command) {
     path = "/run";
     body = { type: "sync-shortlist" };
     break;
+  case "sync-job":
+    path = "/run";
+    body = { type: "sync-job", jobId: args[0] };
+    break;
   case "fill-preview":
     path = "/run";
     body = { type: "apply", jobId: args[0], dryRun: true };

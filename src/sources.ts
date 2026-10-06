@@ -1,13 +1,19 @@
 import type { Job, Source } from "./types";
 export function stripHtml(s: string): string {
+  // Greenhouse can entity-encode the markup itself. Decode before stripping
+  // tags so the matcher sees requirements rather than literal HTML.
   return s
+    .replace(/&amp;lt;/gi, "<")
+    .replace(/&amp;gt;/gi, ">")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
     .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, "")
     .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, "")
     .replace(/<[^>]*>/g, " ")
     .replace(/&nbsp;/g, " ")
     .replace(/&amp;/g, "&")
-    .replace(/&lt;/g, "<")
-    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&#(?:39|x27);/gi, "'")
     .replace(/\s+/g, " ")
     .trim();
 }

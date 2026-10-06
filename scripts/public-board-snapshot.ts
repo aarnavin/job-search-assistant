@@ -11,7 +11,7 @@ const results = await Promise.all(
     return jobs
       .filter((job) => job.listed)
       .map((job) => ({ job, fit: rank(job) }))
-      .filter(({ fit }) => fit.bayArea && fit.label !== "Skip")
+      .filter(({ fit }) => fit.bayArea && fit.earlyCareerVerified)
       .map(({ job, fit }) => ({
         id: job.id,
         company: job.company,

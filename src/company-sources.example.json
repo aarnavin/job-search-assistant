@@ -22,5 +22,21 @@
     "board": "twitch",
     "referral": false,
     "note": "Public example board; review requirements before applying."
+  },
+  {
+    "id": "applied-intuition",
+    "company": "Applied Intuition",
+    "ats": "ashby",
+    "board": "applied",
+    "referral": false,
+    "note": "Public example board; graduate-degree and research requirements need review."
+  },
+  {
+    "id": "pinterest",
+    "company": "Pinterest",
+    "ats": "greenhouse",
+    "board": "pinterest",
+    "referral": false,
+    "note": "Public example board; university-grad roles need degree and start-date review."
   }
 ]

@@ -349,6 +349,13 @@ export default {
             .sort((a, b) => b.priority - a.priority)
             .slice(0, 25))
             await env.TASKS.send({ type: "sync", jobId: row.id });
+        } else if (body.type === "sync-job" && typeof body.jobId === "string") {
+          await importNotion(env);
+          const row = await env.DB.prepare("SELECT id FROM jobs WHERE id=?")
+            .bind(body.jobId)
+            .first<{ id: string }>();
+          if (!row) return json({ error: "Unknown job ID" }, 404);
+          await env.TASKS.send({ type: "sync", jobId: row.id });
         } else if (body.type === "digest")
           await env.TASKS.send({ type: "digest" });
         else if (body.type === "apply" && typeof body.jobId === "string")

@@ -137,6 +137,57 @@ test("only employer-verified early-career roles in the chosen fields qualify", (
     ).label,
     "Skip",
   );
+  assert.equal(
+    rank(
+      job({
+        title: "Research Engineer - New Grad (2027)",
+        description:
+          "Early-career research. MSc or PhD in machine learning, graduating by December 2026 or Summer 2027. Python PyTorch. 1+ year of experience.",
+      }),
+    ).label,
+    "Possible",
+  );
+  assert.equal(
+    rank(
+      job({
+        title: "Master's University Grad Machine Learning Engineer 2027 (USA)",
+        description:
+          "Master's degree required. Python PyTorch machine learning.",
+      }),
+    ).earlyCareerVerified,
+    true,
+  );
+  assert.equal(
+    rank(job({ title: "PhD University Grad Machine Learning Engineer" })).label,
+    "Skip",
+  );
+  assert.equal(
+    rank(
+      job({
+        title: "Machine Learning Engineer II",
+        description: "Python PyTorch. 2+ years of experience.",
+      }),
+    ).label,
+    "Skip",
+  );
+  assert.equal(
+    rank(
+      job({
+        title: "Data Scientist",
+        description: "Python SQL. Preferred: 1 year of experience.",
+      }),
+    ).label,
+    "Skip",
+  );
+  assert.equal(
+    rank(
+      job({
+        title: "Data Scientist",
+        description: "Python SQL. We launched 2 years ago.",
+      }),
+    ).label,
+    "Skip",
+  );
 });
 test("Notion cleanup preserves history and watchlists but removes unverified active listings", () => {
   const page = {
@@ -192,6 +243,19 @@ test("adapters reject malformed responses and do not invent posting dates", () =
     ],
   });
   assert.equal(j.description, "Python & SQL");
+  assert.equal(
+    parseJobs(source, {
+      jobs: [
+        {
+          id: 124,
+          title: "Data Scientist, New Grad",
+          absolute_url: "https://boards.greenhouse.io/test/jobs/124",
+          content: "&lt;p&gt;Python &amp; SQL&lt;/p&gt;",
+        },
+      ],
+    })[0].description,
+    "Python & SQL",
+  );
   assert.equal(j.postedAt, null);
   assert.throws(() => parseJobs(source, { error: "no access" }));
 });

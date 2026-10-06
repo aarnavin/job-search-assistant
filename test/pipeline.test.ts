@@ -207,6 +207,7 @@ test("digest excludes unverified roles, software roles, and prior applications e
   const since = "2027-06-30T00:00:00Z";
   const before = await digestContent(env, since);
   assert.match(before, /Strong new matches \(1\)/);
+  assert.match(before, /Needs your input \(0\)/);
   assert.doesNotMatch(before, /Data Scientist 2027<\/a>/);
   assert.doesNotMatch(before, /Software Engineer, New Grad/);
   await importPages(env, [
