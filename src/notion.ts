@@ -1,4 +1,4 @@
-import type { Env, Existing, Fit, Job } from "./types";
+import type { ContractOpportunity, Env, Existing, Fit, Job } from "./types";
 import { linksIn } from "./identity";
 import { roleLane } from "./matching";
 export const extraProperties = {
@@ -41,6 +41,13 @@ export const extraProperties = {
       ].map((name) => ({ name })),
     },
   },
+  "Opportunity Type": {
+    select: {
+      options: ["Full-time", "Contractor"].map((name) => ({ name })),
+    },
+  },
+  Compensation: { rich_text: {} },
+  Schedule: { rich_text: {} },
 };
 export class Notion {
   // Bind through a wrapper. Cloudflare's native fetch requires the global receiver.
@@ -141,6 +148,7 @@ export class Notion {
         "Needs Your Input": { checkbox: true },
         "Automation Status": { select: { name: "Review" } },
         "Role Lane": { select: { name: roleLane(job.title) } },
+        "Opportunity Type": { select: { name: "Full-time" } },
       },
       children: [
         heading("Action items"),
@@ -166,6 +174,48 @@ export class Notion {
         ...fit.reasons.map(paragraph),
         paragraph(
           "Earliest availability: June 1, 2027. Missing employer start dates require truthful disclosure; other requirements must be checked before submission.",
+        ),
+      ],
+    });
+  }
+  createContract(opportunity: ContractOpportunity, foundAt: string) {
+    return this.call("pages", "POST", {
+      parent: {
+        type: "data_source_id",
+        data_source_id: this.env.NOTION_DATA_SOURCE_ID,
+      },
+      properties: {
+        Company: { title: [rt(opportunity.company)] },
+        Position: { rich_text: [rt(opportunity.title, opportunity.url)] },
+        Source: {
+          rich_text: [rt(`Contract lead · ${opportunity.platform}`)],
+        },
+        Link: { url: opportunity.url },
+        Stage: { status: { name: "To apply" } },
+        Location: { rich_text: [rt(opportunity.location)] },
+        "Date Found": { date: { start: foundAt } },
+        Fit: { select: { name: opportunity.fit } },
+        "Needs Your Input": { checkbox: true },
+        "Automation Status": { select: { name: "Review" } },
+        "Role Lane": { select: { name: opportunity.lane } },
+        "Opportunity Type": { select: { name: "Contractor" } },
+        Compensation: { rich_text: [rt(opportunity.compensation)] },
+        Schedule: { rich_text: [rt(opportunity.schedule)] },
+      },
+      children: [
+        heading("Contract opportunity"),
+        paragraph(`Pay: ${opportunity.compensation}`),
+        paragraph(`Schedule: ${opportunity.schedule}`),
+        ...opportunity.reasons.map(paragraph),
+        ...(opportunity.caveat
+          ? [heading("Check before applying"), paragraph(opportunity.caveat)]
+          : []),
+        heading("Action items"),
+        todo(
+          "Confirm current project availability and complete the platform assessment",
+        ),
+        todo(
+          "Review contractor terms, paid-task rules, and weekly hour limits",
         ),
       ],
     });

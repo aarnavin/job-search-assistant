@@ -210,6 +210,11 @@ test("Notion cleanup preserves history and watchlists but removes unverified act
   assert.equal(assessListing({ ...page, title: "" }, []).action, "preserve");
   assert.equal(assessListing(page, []).action, "archive");
   assert.equal(
+    assessListing({ ...page, source: "Contract lead · Handshake AI" }, [])
+      .action,
+    "preserve",
+  );
+  assert.equal(
     assessListing(page, [
       {
         ...tracked[0],

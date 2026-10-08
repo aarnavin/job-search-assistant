@@ -33,6 +33,11 @@ export function assessListing(page: Existing, jobs: Tracked[]) {
       action: "preserve" as const,
       reason: "History or company watchlist",
     };
+  if (/^contract lead\b/i.test(page.source))
+    return {
+      action: "preserve" as const,
+      reason: "Curated contractor opportunity",
+    };
   const row = linkedJob(page, jobs);
   if (!row)
     return {

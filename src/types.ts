@@ -8,6 +8,19 @@ export type Source = {
   referral?: boolean;
   note?: string;
 };
+export type ContractOpportunity = {
+  company: string;
+  platform: string;
+  title: string;
+  url: string;
+  location: string;
+  compensation: string;
+  schedule: string;
+  fit: "Strong" | "Possible";
+  lane: "ML Engineering" | "Data Science" | "Applied Science" | "Research";
+  reasons: string[];
+  caveat?: string;
+};
 export type Job = {
   id: string;
   sourceId: string;

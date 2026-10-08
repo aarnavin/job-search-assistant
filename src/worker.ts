@@ -6,13 +6,14 @@ import { rank, roleLane } from "./matching";
 import { scan, syncJob } from "./pipeline";
 import { duplicate, event, importPages, setSetting, setting } from "./store";
 import { profileProblems } from "./forms";
+import { identities } from "./identity";
 import {
   archiveUnverified,
   cleanupPreview,
   reclassifyJobs,
   rejectVals,
 } from "./maintenance";
-import type { Env, Profile, Source, Task } from "./types";
+import type { ContractOpportunity, Env, Profile, Source, Task } from "./types";
 const json = (value: unknown, status = 200) =>
   Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
 async function auth(request: Request, env: Env) {
@@ -276,6 +277,77 @@ export default {
             await setSetting(env, "sync_enabled_at", new Date().toISOString());
         }
         return json({ ok: true });
+      }
+      if (path === "/contract-opportunities") {
+        if (
+          !Array.isArray(body.opportunities) ||
+          body.opportunities.length > 10
+        )
+          return json({ error: "Provide up to 10 opportunities" }, 400);
+        const allowedHosts = new Set([
+          "app.joinhandshake.com",
+          "joinhandshake.com",
+          "outlier.ai",
+          "www.alignerr.com",
+          "alignerr.com",
+          "work.mercor.com",
+        ]);
+        const opportunities = body.opportunities as ContractOpportunity[];
+        for (const item of opportunities) {
+          let url: URL;
+          try {
+            url = new URL(item?.url);
+          } catch {
+            return json({ error: "Invalid contract opportunity URL" }, 400);
+          }
+          if (
+            !item?.company ||
+            !item.platform ||
+            !item.title ||
+            !item.location ||
+            !item.compensation ||
+            !item.schedule ||
+            !["Strong", "Possible"].includes(item.fit) ||
+            ![
+              "ML Engineering",
+              "Data Science",
+              "Applied Science",
+              "Research",
+            ].includes(item.lane) ||
+            !Array.isArray(item.reasons) ||
+            url.protocol !== "https:" ||
+            !allowedHosts.has(url.hostname)
+          )
+            return json({ error: "Invalid contract opportunity" }, 400);
+        }
+        const notion = new Notion(env);
+        await notion.schema();
+        const existing = await notion.pages();
+        const existingLinks = new Set(
+          existing.flatMap((page) => identities(page.links)),
+        );
+        const created: { company: string; title: string; id: string }[] = [];
+        const skipped: { company: string; title: string }[] = [];
+        const foundAt = new Date().toISOString();
+        for (const opportunity of opportunities) {
+          const identity = identities([opportunity.url])[0];
+          if (identity && existingLinks.has(identity)) {
+            skipped.push({
+              company: opportunity.company,
+              title: opportunity.title,
+            });
+            continue;
+          }
+          const page = await notion.createContract(opportunity, foundAt);
+          created.push({
+            company: opportunity.company,
+            title: opportunity.title,
+            id: page.id,
+          });
+          if (identity) existingLinks.add(identity);
+        }
+        await importNotion(env);
+        return json({ created, skipped });
       }
       if (path === "/profile") {
         const p = body.profile as Profile;

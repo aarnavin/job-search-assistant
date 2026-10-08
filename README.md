@@ -23,6 +23,8 @@ The Worker scans supported boards every six hours. Each opening gets a stable id
 
 Matching is rule based and explainable. A role must contain explicit employer-posting evidence such as a new-graduate label, early-career label, or a 0–2-year minimum requirement. Missing descriptions, unsupported role families, and postings mentioning three or more years are held out of emails and new Notion listings. It also checks seniority, location, and start-date compatibility, then labels eligible roles **Strong** or **Possible** with reasons. Notion remains the dashboard: existing application history and notes are preserved, company watchlist entries remain separate, and one page is created per verified opening. The Role Lane property uses ML Engineering, Data Science, Applied Science, and Research.
 
+Flexible contractor work is tracked separately from the full-time pipeline. Authenticated, manually vetted leads can be added with compensation, schedule, fit notes, and caveats under **Opportunity Type: Contractor**. This keeps short-term AI evaluation and expert-network work visible without weakening the early-career requirements used for permanent roles.
+
 Application support is deliberately narrow. The Ashby adapter can preview a standard form with an approved profile. Unknown questions, essays, referrals, assessments, login requirements, and uncertain submission outcomes stop the workflow for review. Submission is disabled by default and requires profile and role approval. This is a prototype for a personal workflow, not a general-purpose applicant bot.
 
 ## Engineering choices
