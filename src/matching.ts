@@ -242,3 +242,93 @@ export function rank(job: Job): Fit {
     earlyCareerVerified: !!evidence && finalLabel !== "Skip",
   };
 }
+
+export function rankFlexible(job: Job): Fit {
+  const title = job.title.toLowerCase();
+  const text = job.description.toLowerCase();
+  const combined = `${job.employmentType} ${title} ${text}`;
+  const remoteOrBay =
+    /remote|san francisco|bay area|oakland|berkeley|palo alto|san jose/i.test(
+      job.location,
+    );
+  const reasons: string[] = [];
+  let label: Fit["label"] = "Strong";
+  const possible = (reason: string) => {
+    if (label !== "Skip") label = "Possible";
+    reasons.push(reason);
+  };
+  const skip = (reason: string) => {
+    label = "Skip";
+    reasons.push(reason);
+  };
+  if (
+    !/contract|part[ -]?time|freelanc|hourly|ai trainer|ai evaluator/.test(
+      combined,
+    )
+  )
+    skip("Not verified as flexible contractor or part-time work");
+  if (!remoteOrBay) skip("Not remote or in the Bay Area");
+  if (/not currently hiring candidates based in california/.test(text))
+    skip("California applicants are excluded");
+  if (/\b(?:senior|staff|principal|director|manager|lead)\b/.test(title))
+    skip("Senior title");
+  const years = experienceYears(text);
+  if (years.some((year) => year >= 3))
+    skip("Requires at least three years of experience");
+  if (
+    /\bph\.?d\.?\b[^.!\n]{0,50}(?:required|in chemistry|in biology)/.test(text)
+  )
+    skip("Requires unrelated doctoral expertise");
+  const matches = skills.filter((skill) =>
+    new RegExp(
+      "\\b" + skill.replace(/[.*+?^$()|[\]{}]/g, "\\$&") + "\\b",
+      "i",
+    ).test(combined),
+  );
+  const relevantTitle =
+    roleLane(job.title) !== "Other" ||
+    /\b(?:ai|data|machine learning|statistics)\s+(?:trainer|evaluator|expert|annotator)\b/.test(
+      title,
+    );
+  if (!relevantTitle || matches.length < 2)
+    skip("Insufficient evidence of an ML, data, applied AI, or research fit");
+  else reasons.push("Resume overlap: " + matches.slice(0, 6).join(", "));
+  const hours = [
+    ...combined.matchAll(
+      /(?:minimum|min\.?|approximately|about)?\s*(\d{1,2})(?:\s*(?:-|–|to)\s*(\d{1,2}))?\s*(?:hours?|hrs?)\s*(?:per|\/)\s*week/g,
+    ),
+  ].map((match) => ({
+    min: Number(match[1]),
+    max: Number(match[2] ?? match[1]),
+  }));
+  if (hours.some((range) => range.min > 20))
+    skip("Requires more than 20 hours per week");
+  else if (hours.some((range) => range.max > 20))
+    possible("Can exceed 20 hours; confirm a school-compatible weekly cap");
+  else if (/flexible|asynchronous|no minimum/.test(text))
+    reasons.push("Employer verifies flexible or asynchronous scheduling");
+  else possible("Confirm Spring 2027 scheduling and weekly hours");
+  const pay = [
+    ...combined.matchAll(
+      /\$\s?(\d{2,3})(?:\s*(?:-|–|to)\s*\$?\s?(\d{2,3}))?\s*(?:per\s+hour|\/\s*(?:hour|hr)|hourly)/g,
+    ),
+  ].map((match) => ({
+    min: Number(match[1]),
+    max: Number(match[2] ?? match[1]),
+  }));
+  if (pay.length && pay.every((range) => range.max < 40))
+    skip("Pay is below the $40/hour target");
+  else if (pay.some((range) => range.min >= 40))
+    reasons.push("Meets the $40/hour pay target");
+  else possible("Hourly pay needs confirmation");
+  if (!job.listed) skip("Posting is not publicly listed");
+  const finalLabel = label as Fit["label"];
+  return {
+    label: finalLabel,
+    reasons,
+    bayArea: remoteOrBay,
+    priority:
+      finalLabel === "Strong" ? 100 : finalLabel === "Possible" ? 40 : 0,
+    earlyCareerVerified: finalLabel !== "Skip",
+  };
+}

@@ -1,6 +1,6 @@
 import type { Env, Job, JobRow } from "./types";
 import { setting } from "./store";
-import { rank } from "./matching";
+import { rank, rankFlexible } from "./matching";
 import { companyKey, identities, plainTitle } from "./identity";
 export function localClock(now: Date, zone = "America/Los_Angeles") {
   const parts = new Intl.DateTimeFormat("en-CA", {
@@ -24,6 +24,20 @@ export function escapeHtml(s: string) {
   );
 }
 export async function digestContent(env: Env, since: string) {
+  const sourceRows = await env.DB.prepare("SELECT id,data FROM sources").all<{
+    id: string;
+    data: string;
+  }>();
+  const tracks = new Map(
+    sourceRows.results.map((source) => [
+      source.id,
+      JSON.parse(source.data).track as string | undefined,
+    ]),
+  );
+  const fitFor = (row: JobRow) =>
+    tracks.get(row.source_id) === "spring-flex"
+      ? rankFlexible(JSON.parse(row.data))
+      : rank(JSON.parse(row.data));
   const jobs = await env.DB.prepare(
     "SELECT * FROM jobs WHERE open=1 ORDER BY first_seen DESC",
   ).all<JobRow>();
@@ -48,7 +62,7 @@ export async function digestContent(env: Env, since: string) {
   );
   const eligible = jobs.results.filter((row) => {
     const job: Job = JSON.parse(row.data);
-    const fit = rank(job);
+    const fit = fitFor(row);
     if (!fit.earlyCareerVerified || fit.label === "Skip") return false;
     if (row.notion_id && completedIds.has(row.notion_id)) return false;
     if (
@@ -73,12 +87,20 @@ export async function digestContent(env: Env, since: string) {
   }>();
   const strong = eligible.filter(
     (j) =>
-      rank(JSON.parse(j.data)).label === "Strong" &&
+      tracks.get(j.source_id) !== "spring-flex" &&
+      fitFor(j).label === "Strong" &&
+      !j.baseline &&
+      j.first_seen > since,
+  );
+  const flexible = eligible.filter(
+    (j) =>
+      tracks.get(j.source_id) === "spring-flex" &&
       !j.baseline &&
       j.first_seen > since,
   );
   const review = eligible.filter(
     (j) =>
+      tracks.get(j.source_id) !== "spring-flex" &&
       j.notion_id &&
       j.needs_input &&
       !["Submitted", "Existing"].includes(j.automation),
@@ -97,6 +119,9 @@ export async function digestContent(env: Env, since: string) {
       : "",
     strong.length
       ? `<h2>New matches (${strong.length})</h2><ul>${strong.slice(0, 30).map(link).join("")}</ul>`
+      : "",
+    flexible.length
+      ? `<h2>Spring flexible work (${flexible.length})</h2><ul>${flexible.slice(0, 15).map(link).join("")}</ul>`
       : "",
     review.length
       ? `<h2>Action needed (${review.length})</h2><ul>${review.slice(0, 30).map(link).join("")}</ul>`

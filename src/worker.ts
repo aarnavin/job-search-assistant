@@ -91,7 +91,7 @@ export async function scheduled(env: Env, cron: string) {
       const imported = await setting(env, "imported_at", "");
       if (!imported || Date.now() - Date.parse(imported) > 7 * 3600000) return;
       const candidates = await env.DB.prepare(
-        "SELECT id FROM jobs WHERE fit='Strong' AND open=1 AND notion_id IS NOT NULL AND automation IN ('Ready','Review') AND NOT EXISTS(SELECT 1 FROM attempts WHERE attempts.job_id=jobs.id) ORDER BY baseline ASC,first_seen DESC LIMIT 3",
+        "SELECT id FROM jobs WHERE fit='Strong' AND open=1 AND notion_id IS NOT NULL AND automation IN ('Ready','Review') AND source_id NOT IN (SELECT id FROM sources WHERE json_extract(data,'$.track')='spring-flex') AND NOT EXISTS(SELECT 1 FROM attempts WHERE attempts.job_id=jobs.id) ORDER BY baseline ASC,first_seen DESC LIMIT 3",
       ).all<{ id: string }>();
       for (const j of candidates.results)
         await env.TASKS.send({ type: "apply", jobId: j.id });

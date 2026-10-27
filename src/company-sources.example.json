@@ -1,5 +1,14 @@
 [
   {
+    "id": "handshake-flex",
+    "company": "Handshake AI",
+    "ats": "ashby",
+    "board": "handshake",
+    "track": "spring-flex",
+    "referral": false,
+    "note": "Flexible contractor roles use school-compatible hours and pay rules."
+  },
+  {
     "id": "palantir",
     "company": "Palantir",
     "ats": "lever",

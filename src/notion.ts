@@ -258,6 +258,46 @@ export class Notion {
       ],
     });
   }
+  createFlexible(job: Job, fit: Fit, foundAt: string, marker: string) {
+    const lane = roleLane(job.title);
+    return this.call("pages", "POST", {
+      parent: {
+        type: "data_source_id",
+        data_source_id: this.env.NOTION_DATA_SOURCE_ID,
+      },
+      properties: {
+        Company: { title: [rt(job.company)] },
+        Position: { rich_text: [rt(job.title, job.url)] },
+        Source: { rich_text: [rt(`${job.ats} flexible-work board`)] },
+        Link: { url: job.applyUrl },
+        Stage: { status: { name: "To apply" } },
+        Location: {
+          rich_text: [rt(job.location || "Remote eligibility unclear")],
+        },
+        "Date Found": { date: { start: foundAt } },
+        Fit: { select: { name: fit.label } },
+        "Needs Your Input": { checkbox: true },
+        "Automation Status": { select: { name: "Review" } },
+        "Role Lane": {
+          select: { name: lane === "Other" ? "Applied Science" : lane },
+        },
+        "Opportunity Type": { select: { name: "Contractor" } },
+        "Search Track": {
+          select: { name: "Spring 2027 Flexible Work" },
+        },
+      },
+      children: [
+        heading("Spring 2027 flexible work"),
+        ...fit.reasons.map(paragraph),
+        heading("Action items"),
+        todo(
+          "Confirm the hourly rate, weekly cap, and Spring 2027 availability",
+        ),
+        todo("Review contractor terms and any assessment before applying"),
+        paragraph(marker),
+      ],
+    });
+  }
   async tagSearchTrack(
     id: string,
     opportunityType: ManualApplication["opportunityType"],

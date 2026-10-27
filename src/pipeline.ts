@@ -1,5 +1,5 @@
 import { fetchJobs } from "./sources";
-import { rank } from "./matching";
+import { rank, rankFlexible } from "./matching";
 import { Notion } from "./notion";
 import {
   duplicate,
@@ -31,8 +31,9 @@ export async function scan(env: Env, sourceId: string) {
           .all<{ id: string }>()
       ).results.map((j) => j.id),
     );
+    const ranker = source.track === "spring-flex" ? rankFlexible : rank;
     const relevant = jobs
-      .map((job) => ({ job, fit: rank(job) }))
+      .map((job) => ({ job, fit: ranker(job) }))
       .filter(({ job, fit }) => fit.earlyCareerVerified || tracked.has(job.id));
     if (relevant.length > 400)
       throw new Error(
@@ -106,7 +107,16 @@ export async function syncJob(env: Env, id: string) {
     throw new Error("Fresh Notion import required before sync");
   const row = await jobRow(env, id);
   if (!row || row.notion_id || !row.open || row.fit === "Skip") return;
-  const currentFit = rank(JSON.parse(row.data));
+  const sourceRow = await env.DB.prepare("SELECT data FROM sources WHERE id=?")
+    .bind(row.source_id)
+    .first<{ data: string }>();
+  const source: Source | undefined = sourceRow
+    ? JSON.parse(sourceRow.data)
+    : undefined;
+  const currentFit =
+    source?.track === "spring-flex"
+      ? rankFlexible(JSON.parse(row.data))
+      : rank(JSON.parse(row.data));
   if (!currentFit.earlyCareerVerified || currentFit.label === "Skip") return;
   const owner = await lock(env, `sync:${id}`);
   if (!owner) return;
@@ -150,13 +160,21 @@ export async function syncJob(env: Env, id: string) {
       .bind(id)
       .run();
     const notion = new Notion(env);
-    const page = await notion.create(
-      job,
-      currentFit,
-      row.first_seen,
-      !!row.baseline,
-      `Job identity: ${id}`,
-    );
+    const page =
+      source?.track === "spring-flex"
+        ? await notion.createFlexible(
+            job,
+            currentFit,
+            row.first_seen,
+            `Job identity: ${id}`,
+          )
+        : await notion.create(
+            job,
+            currentFit,
+            row.first_seen,
+            !!row.baseline,
+            `Job identity: ${id}`,
+          );
     await env.DB.prepare(
       "UPDATE sync_writes SET state='created',page_id=? WHERE job_id=?",
     )

@@ -7,6 +7,7 @@ export type Source = {
   careerUrl?: string;
   referral?: boolean;
   note?: string;
+  track?: "full-time" | "spring-flex";
 };
 export type ContractOpportunity = {
   company: string;

@@ -6,7 +6,7 @@ import {
   linksIn,
   normalizeUrl,
 } from "../src/identity";
-import { rank } from "../src/matching";
+import { rank, rankFlexible } from "../src/matching";
 import { parseJobs, fetchJobs } from "../src/sources";
 import { planFields, profileProblems } from "../src/forms";
 import { localClock, escapeHtml } from "../src/digest";
@@ -186,6 +186,41 @@ test("only employer-verified early-career roles in the chosen fields qualify", (
         description: "Python SQL. We launched 2 years ago.",
       }),
     ).label,
+    "Skip",
+  );
+});
+test("spring flexible work enforces fit, hours, location, and pay separately", () => {
+  const flexible = job({
+    title: "Data Scientist — AI Trainer",
+    location: "Remote (USA)",
+    employmentType: "Contract",
+    description:
+      "Independent contractor. Python SQL statistics and machine learning. Flexible asynchronous schedule, 5-20 hours per week. $40-$80/hr. 1 year of experience.",
+  });
+  assert.equal(rankFlexible(flexible).label, "Strong");
+  assert.equal(
+    rankFlexible({
+      ...flexible,
+      description: flexible.description.replace("5-20", "10-40"),
+    }).label,
+    "Possible",
+  );
+  assert.equal(
+    rankFlexible({
+      ...flexible,
+      description: flexible.description.replace("5-20", "25"),
+    }).label,
+    "Skip",
+  );
+  assert.equal(
+    rankFlexible({
+      ...flexible,
+      description: flexible.description.replace("$40-$80", "$25-$35"),
+    }).label,
+    "Skip",
+  );
+  assert.equal(
+    rankFlexible({ ...flexible, location: "New York, NY" }).label,
     "Skip",
   );
 });
