@@ -21,6 +21,20 @@ export type ContractOpportunity = {
   reasons: string[];
   caveat?: string;
 };
+export type ManualApplication = {
+  company: string;
+  title: string;
+  url: string;
+  source: string;
+  location: string;
+  opportunityType: "Full-time" | "Contractor" | "Internship";
+  searchTrack: "Full-time 2027" | "Spring 2027 Flexible Work";
+  lane: "ML Engineering" | "Data Science" | "Applied Science" | "Research";
+  fit: "Strong" | "Possible";
+  compensation?: string;
+  schedule?: string;
+  notes?: string[];
+};
 export type Job = {
   id: string;
   sourceId: string;

@@ -1,4 +1,11 @@
-import type { ContractOpportunity, Env, Existing, Fit, Job } from "./types";
+import type {
+  ContractOpportunity,
+  Env,
+  Existing,
+  Fit,
+  Job,
+  ManualApplication,
+} from "./types";
 import { linksIn } from "./identity";
 import { roleLane } from "./matching";
 export const extraProperties = {
@@ -43,7 +50,16 @@ export const extraProperties = {
   },
   "Opportunity Type": {
     select: {
-      options: ["Full-time", "Contractor"].map((name) => ({ name })),
+      options: ["Full-time", "Contractor", "Internship"].map((name) => ({
+        name,
+      })),
+    },
+  },
+  "Search Track": {
+    select: {
+      options: ["Full-time 2027", "Spring 2027 Flexible Work"].map((name) => ({
+        name,
+      })),
     },
   },
   Compensation: { rich_text: {} },
@@ -82,14 +98,32 @@ export class Notion {
   }
   async schema() {
     const s = await this.call(`data_sources/${this.env.NOTION_DATA_SOURCE_ID}`);
-    const missing = Object.fromEntries(
-      Object.entries(extraProperties).filter(([k]) => !s.properties[k]),
-    );
-    if (Object.keys(missing).length)
+    const changes: Record<string, unknown> = {};
+    for (const [key, definition] of Object.entries(extraProperties)) {
+      const current = s.properties[key];
+      if (!current) {
+        changes[key] = definition;
+        continue;
+      }
+      if ("select" in definition && definition.select.options) {
+        const currentOptions = current.select?.options ?? [];
+        const currentNames = new Set(
+          currentOptions.map((option: { name: string }) => option.name),
+        );
+        const additions = definition.select.options.filter(
+          (option) => !currentNames.has(option.name),
+        );
+        if (additions.length)
+          changes[key] = {
+            select: { options: [...currentOptions, ...additions] },
+          };
+      }
+    }
+    if (Object.keys(changes).length)
       await this.call(
         `data_sources/${this.env.NOTION_DATA_SOURCE_ID}`,
         "PATCH",
-        { properties: missing },
+        { properties: changes },
       );
   }
   async pages(): Promise<Existing[]> {
@@ -149,6 +183,7 @@ export class Notion {
         "Automation Status": { select: { name: "Review" } },
         "Role Lane": { select: { name: roleLane(job.title) } },
         "Opportunity Type": { select: { name: "Full-time" } },
+        "Search Track": { select: { name: "Full-time 2027" } },
       },
       children: [
         heading("Action items"),
@@ -199,6 +234,9 @@ export class Notion {
         "Automation Status": { select: { name: "Review" } },
         "Role Lane": { select: { name: opportunity.lane } },
         "Opportunity Type": { select: { name: "Contractor" } },
+        "Search Track": {
+          select: { name: "Spring 2027 Flexible Work" },
+        },
         Compensation: { rich_text: [rt(opportunity.compensation)] },
         Schedule: { rich_text: [rt(opportunity.schedule)] },
       },
@@ -217,6 +255,60 @@ export class Notion {
         todo(
           "Review contractor terms, paid-task rules, and weekly hour limits",
         ),
+      ],
+    });
+  }
+  async tagSearchTrack(
+    id: string,
+    opportunityType: ManualApplication["opportunityType"],
+    searchTrack: ManualApplication["searchTrack"],
+  ) {
+    await this.call(`pages/${id}`, "PATCH", {
+      properties: {
+        "Opportunity Type": { select: { name: opportunityType } },
+        "Search Track": { select: { name: searchTrack } },
+      },
+    });
+  }
+  async recordApplication(
+    application: ManualApplication,
+    appliedAt: string,
+    existingPageId?: string,
+  ) {
+    const properties = {
+      Company: { title: [rt(application.company)] },
+      Position: { rich_text: [rt(application.title, application.url)] },
+      Source: { rich_text: [rt(application.source)] },
+      Link: { url: application.url },
+      Stage: { status: { name: "Applied" } },
+      "Date Applied": { date: { start: appliedAt } },
+      "Date Found": { date: { start: appliedAt } },
+      Location: { rich_text: [rt(application.location)] },
+      Fit: { select: { name: application.fit } },
+      "Needs Your Input": { checkbox: false },
+      "Automation Status": { select: { name: "Submitted" } },
+      "Role Lane": { select: { name: application.lane } },
+      "Opportunity Type": { select: { name: application.opportunityType } },
+      "Search Track": { select: { name: application.searchTrack } },
+      ...(application.compensation
+        ? { Compensation: { rich_text: [rt(application.compensation)] } }
+        : {}),
+      ...(application.schedule
+        ? { Schedule: { rich_text: [rt(application.schedule)] } }
+        : {}),
+    };
+    if (existingPageId)
+      return this.call(`pages/${existingPageId}`, "PATCH", { properties });
+    return this.call("pages", "POST", {
+      parent: {
+        type: "data_source_id",
+        data_source_id: this.env.NOTION_DATA_SOURCE_ID,
+      },
+      properties,
+      children: [
+        heading("Application record"),
+        paragraph(`Applied manually on ${appliedAt}.`),
+        ...(application.notes ?? []).map(paragraph),
       ],
     });
   }

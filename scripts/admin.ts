@@ -116,6 +116,12 @@ switch (command) {
       ),
     };
     break;
+  case "record-application":
+    path = "/record-application";
+    body = JSON.parse(
+      await readFile(args[0] || "private/manual-application.json", "utf8"),
+    );
+    break;
   case "retry-pre-submit":
     path = "/reconcile";
     body = { action: command, jobId: args[0] };
@@ -132,7 +138,7 @@ switch (command) {
     break;
   default:
     throw new Error(
-      "Commands: setup, status, existing, shortlist, preview, digest-preview, categorize, pause, resume, enable/disable sync|email|apply, scan, sync, sync-shortlist, digest, profile, contracts [JSON_FILE], fill-preview JOB_ID, apply JOB_ID --submit, retry-pre-submit JOB_ID, attach-notion JOB_ID PAGE_ID",
+      "Commands: setup, status, existing, shortlist, preview, digest-preview, categorize, pause, resume, enable/disable sync|email|apply, scan, sync, sync-shortlist, digest, profile, contracts [JSON_FILE], record-application [JSON_FILE], fill-preview JOB_ID, apply JOB_ID --submit, retry-pre-submit JOB_ID, attach-notion JOB_ID PAGE_ID",
     );
 }
 const response = await fetch(new URL(path, base), {

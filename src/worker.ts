@@ -13,7 +13,14 @@ import {
   reclassifyJobs,
   rejectVals,
 } from "./maintenance";
-import type { ContractOpportunity, Env, Profile, Source, Task } from "./types";
+import type {
+  ContractOpportunity,
+  Env,
+  ManualApplication,
+  Profile,
+  Source,
+  Task,
+} from "./types";
 const json = (value: unknown, status = 200) =>
   Response.json(value, { status, headers: { "Cache-Control": "no-store" } });
 async function auth(request: Request, env: Env) {
@@ -323,15 +330,25 @@ export default {
         const notion = new Notion(env);
         await notion.schema();
         const existing = await notion.pages();
-        const existingLinks = new Set(
-          existing.flatMap((page) => identities(page.links)),
+        const existingLinks = new Map(
+          existing.flatMap((page) =>
+            identities(page.links).map((identity) => [identity, page.id]),
+          ),
         );
         const created: { company: string; title: string; id: string }[] = [];
         const skipped: { company: string; title: string }[] = [];
         const foundAt = new Date().toISOString();
         for (const opportunity of opportunities) {
           const identity = identities([opportunity.url])[0];
-          if (identity && existingLinks.has(identity)) {
+          const existingPageId = identity
+            ? existingLinks.get(identity)
+            : undefined;
+          if (existingPageId) {
+            await notion.tagSearchTrack(
+              existingPageId,
+              "Contractor",
+              "Spring 2027 Flexible Work",
+            );
             skipped.push({
               company: opportunity.company,
               title: opportunity.title,
@@ -344,10 +361,62 @@ export default {
             title: opportunity.title,
             id: page.id,
           });
-          if (identity) existingLinks.add(identity);
+          if (identity) existingLinks.set(identity, page.id);
         }
         await importNotion(env);
         return json({ created, skipped });
+      }
+      if (path === "/record-application") {
+        const application = body.application as ManualApplication;
+        const appliedAt = body.appliedAt as string;
+        let url: URL;
+        try {
+          url = new URL(application?.url);
+        } catch {
+          return json({ error: "Invalid application URL" }, 400);
+        }
+        if (
+          !application?.company ||
+          !application.title ||
+          !application.source ||
+          !application.location ||
+          !["Full-time", "Contractor", "Internship"].includes(
+            application.opportunityType,
+          ) ||
+          !["Full-time 2027", "Spring 2027 Flexible Work"].includes(
+            application.searchTrack,
+          ) ||
+          ![
+            "ML Engineering",
+            "Data Science",
+            "Applied Science",
+            "Research",
+          ].includes(application.lane) ||
+          !["Strong", "Possible"].includes(application.fit) ||
+          url.protocol !== "https:" ||
+          !/^\d{4}-\d{2}-\d{2}$/.test(appliedAt)
+        )
+          return json({ error: "Invalid application record" }, 400);
+        const notion = new Notion(env);
+        await notion.schema();
+        const pages = await notion.pages();
+        const applicationIds = new Set(identities([application.url]));
+        const existing = pages.find((page) =>
+          identities(page.links).some((identity) =>
+            applicationIds.has(identity),
+          ),
+        );
+        const page = await notion.recordApplication(
+          application,
+          appliedAt,
+          existing?.id,
+        );
+        await importNotion(env);
+        return json({
+          created: !existing,
+          updated: !!existing,
+          pageId: page.id,
+        });
       }
       if (path === "/profile") {
         const p = body.profile as Profile;
