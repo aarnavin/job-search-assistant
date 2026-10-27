@@ -12,6 +12,7 @@ import { planFields, profileProblems } from "../src/forms";
 import { localClock, escapeHtml } from "../src/digest";
 import { job, profile } from "./helpers";
 import { assessListing } from "../src/maintenance";
+import { desiredTrackerSection } from "../src/notion";
 test("identity matches ATS links across tracking parameters and application suffixes", () => {
   assert.equal(
     jobIdentity(
@@ -261,6 +262,26 @@ test("Notion cleanup preserves history and watchlists but removes unverified act
   assert.equal(
     assessListing(page, [{ ...tracked[0], open: 0 }]).action,
     "archive",
+  );
+});
+test("tracker ordering places history, openings, and company watchlists in order", () => {
+  const page = {
+    id: "page",
+    company: "Test",
+    title: "Data Scientist",
+    stage: "To apply",
+    source: "company board",
+    links: [],
+    referral: false,
+  };
+  assert.equal(
+    desiredTrackerSection({ ...page, stage: "Applied" }),
+    "1 · Application History",
+  );
+  assert.equal(desiredTrackerSection(page), "2 · New Listings");
+  assert.equal(
+    desiredTrackerSection({ ...page, title: "" }),
+    "3 · Company Watchlist",
   );
 });
 test("adapters reject malformed responses and do not invent posting dates", () => {

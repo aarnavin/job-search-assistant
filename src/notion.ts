@@ -5,6 +5,7 @@ import type {
   Fit,
   Job,
   ManualApplication,
+  TrackerSection,
 } from "./types";
 import { linksIn } from "./identity";
 import { roleLane } from "./matching";
@@ -60,6 +61,15 @@ export const extraProperties = {
       options: ["Full-time 2027", "Spring 2027 Flexible Work"].map((name) => ({
         name,
       })),
+    },
+  },
+  "Tracker Section": {
+    select: {
+      options: [
+        "1 · Application History",
+        "2 · New Listings",
+        "3 · Company Watchlist",
+      ].map((name) => ({ name })),
     },
   },
   Compensation: { rich_text: {} },
@@ -184,6 +194,7 @@ export class Notion {
         "Role Lane": { select: { name: roleLane(job.title) } },
         "Opportunity Type": { select: { name: "Full-time" } },
         "Search Track": { select: { name: "Full-time 2027" } },
+        "Tracker Section": { select: { name: "2 · New Listings" } },
       },
       children: [
         heading("Action items"),
@@ -237,6 +248,7 @@ export class Notion {
         "Search Track": {
           select: { name: "Spring 2027 Flexible Work" },
         },
+        "Tracker Section": { select: { name: "2 · New Listings" } },
         Compensation: { rich_text: [rt(opportunity.compensation)] },
         Schedule: { rich_text: [rt(opportunity.schedule)] },
       },
@@ -285,6 +297,7 @@ export class Notion {
         "Search Track": {
           select: { name: "Spring 2027 Flexible Work" },
         },
+        "Tracker Section": { select: { name: "2 · New Listings" } },
       },
       children: [
         heading("Spring 2027 flexible work"),
@@ -330,6 +343,9 @@ export class Notion {
       "Role Lane": { select: { name: application.lane } },
       "Opportunity Type": { select: { name: application.opportunityType } },
       "Search Track": { select: { name: application.searchTrack } },
+      "Tracker Section": {
+        select: { name: "1 · Application History" },
+      },
       ...(application.compensation
         ? { Compensation: { rich_text: [rt(application.compensation)] } }
         : {}),
@@ -367,6 +383,11 @@ export class Notion {
       },
     });
   }
+  async setTrackerSection(id: string, section: TrackerSection) {
+    await this.call(`pages/${id}`, "PATCH", {
+      properties: { "Tracker Section": { select: { name: section } } },
+    });
+  }
   async setLane(id: string, lane: string) {
     await this.call(`pages/${id}`, "PATCH", {
       properties: { "Role Lane": { select: { name: lane } } },
@@ -396,6 +417,9 @@ export class Notion {
           "Date Applied": { date: { start: when } },
           "Automation Status": { select: { name: "Submitted" } },
           "Needs Your Input": { checkbox: false },
+          "Tracker Section": {
+            select: { name: "1 · Application History" },
+          },
         },
       });
     else if (stage !== "Applied")
@@ -456,5 +480,12 @@ export function fromPage(p: any): Existing {
     ].filter(Boolean),
     referral: /referral/i.test(source),
     archived: p.archived || p.in_trash,
+    trackerSection: props["Tracker Section"]?.select?.name,
   };
+}
+
+export function desiredTrackerSection(page: Existing): TrackerSection {
+  if (!page.title.trim()) return "3 · Company Watchlist";
+  if (page.stage && page.stage !== "To apply") return "1 · Application History";
+  return "2 · New Listings";
 }

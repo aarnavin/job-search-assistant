@@ -60,6 +60,13 @@ switch (command) {
   case "categorize":
     path = "/categorize";
     break;
+  case "organize-tracker":
+    path = "/organize-tracker";
+    break;
+  case "tracker-order":
+    path = "/tracker-order";
+    method = "GET";
+    break;
   case "pause":
     path = "/settings";
     body = { paused: true };
@@ -138,7 +145,7 @@ switch (command) {
     break;
   default:
     throw new Error(
-      "Commands: setup, status, existing, shortlist, preview, digest-preview, categorize, pause, resume, enable/disable sync|email|apply, scan, sync, sync-shortlist, digest, profile, contracts [JSON_FILE], record-application [JSON_FILE], fill-preview JOB_ID, apply JOB_ID --submit, retry-pre-submit JOB_ID, attach-notion JOB_ID PAGE_ID",
+      "Commands: setup, status, existing, shortlist, preview, digest-preview, categorize, organize-tracker, tracker-order, pause, resume, enable/disable sync|email|apply, scan, sync, sync-shortlist, digest, profile, contracts [JSON_FILE], record-application [JSON_FILE], fill-preview JOB_ID, apply JOB_ID --submit, retry-pre-submit JOB_ID, attach-notion JOB_ID PAGE_ID",
     );
 }
 const response = await fetch(new URL(path, base), {

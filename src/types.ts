@@ -72,6 +72,7 @@ export type Task =
   | { type: "sync"; jobId: string }
   | { type: "apply"; jobId: string; dryRun?: boolean }
   | { type: "categorize"; pageId: string; lane: string }
+  | { type: "organize"; pageId: string; section: TrackerSection }
   | { type: "digest" }
   | { type: "import" };
 export interface Env {
@@ -112,4 +113,7 @@ export type Existing = {
   links: string[];
   referral: boolean;
   archived?: boolean;
+  trackerSection?: string;
 };
+export type TrackerSection =
+  "1 · Application History" | "2 · New Listings" | "3 · Company Watchlist";

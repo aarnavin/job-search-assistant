@@ -1,7 +1,7 @@
 import companySources from "./company-sources.json";
 import { applyJob, jobFingerprint } from "./applications";
 import { digestContent, sendDigest } from "./digest";
-import { Notion } from "./notion";
+import { desiredTrackerSection, Notion } from "./notion";
 import { rank, roleLane } from "./matching";
 import { scan, syncJob } from "./pipeline";
 import { duplicate, event, importPages, setSetting, setting } from "./store";
@@ -63,6 +63,8 @@ export async function handleTask(env: Env, task: Task) {
       return applyJob(env, task.jobId, task.dryRun);
     case "categorize":
       return new Notion(env).setLane(task.pageId, task.lane);
+    case "organize":
+      return new Notion(env).setTrackerSection(task.pageId, task.section);
     case "digest":
       return sendDigest(env);
     case "import":
@@ -146,6 +148,19 @@ export default {
         );
       if (request.method === "GET" && path === "/cleanup-preview")
         return json(await cleanupPreview(env));
+      if (request.method === "GET" && path === "/tracker-order") {
+        const pages = await new Notion(env).pages();
+        const counts: Record<string, number> = {};
+        let pending = 0;
+        for (const page of pages) {
+          if (page.archived) continue;
+          const desired = desiredTrackerSection(page);
+          counts[page.trackerSection ?? "Unassigned"] =
+            (counts[page.trackerSection ?? "Unassigned"] ?? 0) + 1;
+          if (page.trackerSection !== desired) pending++;
+        }
+        return json({ counts, pending });
+      }
       if (request.method === "GET" && path === "/shortlist") {
         const rows = await env.DB.prepare(
           "SELECT id,data,fit,reasons,first_seen,baseline FROM jobs WHERE open=1 AND fit<>'Skip'",
@@ -251,6 +266,24 @@ export default {
             lane: roleLane(page.title),
           });
         return json({ queued: pages.results.length });
+      }
+      if (path === "/organize-tracker") {
+        const notion = new Notion(env);
+        await notion.schema();
+        const pages = await notion.pages();
+        let queued = 0;
+        for (const page of pages) {
+          if (page.archived) continue;
+          const section = desiredTrackerSection(page);
+          if (page.trackerSection === section) continue;
+          await env.TASKS.send({
+            type: "organize",
+            pageId: page.id,
+            section,
+          });
+          queued++;
+        }
+        return json({ queued });
       }
       if (path === "/settings") {
         for (const [key, value] of Object.entries(body)) {
