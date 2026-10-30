@@ -98,12 +98,12 @@ switch (command) {
     break;
   case "fill-preview":
     path = "/run";
-    body = { type: "apply", jobId: args[0], dryRun: true };
+    body = { type: "apply", jobId: args[0], batchId: args[1], dryRun: true };
     break;
   case "apply":
     if (args[1] !== "--submit") throw new Error("Explicit --submit required");
     path = "/run";
-    body = { type: "apply", jobId: args[0], dryRun: false };
+    body = { type: "apply", jobId: args[0], batchId: args[2], dryRun: false };
     break;
   case "profile":
     path = "/profile";
@@ -129,6 +129,12 @@ switch (command) {
       await readFile(args[0] || "private/manual-application.json", "utf8"),
     );
     break;
+  case "agent-config":
+    path = "/agent-config";
+    body = JSON.parse(
+      await readFile(args[0] || "private/agent-config.json", "utf8"),
+    );
+    break;
   case "retry-pre-submit":
     path = "/reconcile";
     body = { action: command, jobId: args[0] };
@@ -145,7 +151,7 @@ switch (command) {
     break;
   default:
     throw new Error(
-      "Commands: setup, status, existing, shortlist, preview, digest-preview, categorize, organize-tracker, tracker-order, pause, resume, enable/disable sync|email|apply, scan, sync, sync-shortlist, digest, profile, contracts [JSON_FILE], record-application [JSON_FILE], fill-preview JOB_ID, apply JOB_ID --submit, retry-pre-submit JOB_ID, attach-notion JOB_ID PAGE_ID",
+      "Commands: setup, status, existing, shortlist, preview, digest-preview, categorize, organize-tracker, tracker-order, pause, resume, enable/disable sync|email|apply, scan, sync, sync-shortlist, digest, profile, contracts [JSON_FILE], record-application [JSON_FILE], agent-config PRIVATE_JSON_FILE, fill-preview JOB_ID BATCH_ID, apply JOB_ID --submit BATCH_ID, retry-pre-submit JOB_ID, attach-notion JOB_ID PAGE_ID",
     );
 }
 const response = await fetch(new URL(path, base), {

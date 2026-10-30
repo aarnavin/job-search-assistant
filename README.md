@@ -1,6 +1,6 @@
 # Job Search Assistant
 
-A job discovery and application workflow built with Cloudflare Workers, D1, Queues, Notion, and Brevo. It monitors employer career boards, explains why a role may fit, preserves the user's application history in Notion, and sends a daily review digest.
+A job discovery and application workflow built with Cloudflare Workers, D1, Queues, and Notion. Muse is the conversational application agent: it researches jobs, prepares batches for user approval, and fills browser forms. A private connector shares approved materials, application reservations, and results with the existing service. Brevo provides the legacy digest, which switches off when the Muse workflow launches.
 
 The project focuses on early-career machine learning, data science, applied science, and research roles. Forward-deployed **scientist** roles are included; general software and forward-deployed engineering roles are outside the search. The public repository contains the implementation and example configuration. Live account IDs, tokens, resumes, application answers, and Notion records stay local or in service secrets.
 
@@ -13,19 +13,23 @@ flowchart LR
   B --> Q[Cloudflare Queue]
   Q --> D[Match and deduplicate]
   D --> N[Notion tracker]
-  C --> E[Daily Pacific-time digest]
-  E --> F[Brevo email]
-  N --> G[Human review]
-  G --> H[Optional Ashby form preview]
+  M[Muse: Gmail and employer research] --> C
+  C --> G[Batch review and user approval]
+  G --> M
+  M --> H[Browser application]
+  H --> C
+  C --> N
+  G --> R[Optional Ashby backup]
+  R --> C
 ```
 
 The Worker scans supported boards every six hours. Each opening gets a stable identity from its employer job ID or posting URL. The first scan establishes a baseline; later scans can identify newly discovered roles without claiming to know when an employer posted them. A failed feed remains a visible coverage error and cannot silently close jobs.
 
 Matching is rule based and explainable. A role must contain explicit employer-posting evidence such as a new-graduate label, early-career label, or a 0–2-year minimum requirement. Missing descriptions, unsupported role families, and postings mentioning three or more years are held out of emails and new Notion listings. It also checks seniority, location, and start-date compatibility, then labels eligible roles **Strong** or **Possible** with reasons. Notion remains the dashboard: existing application history and notes are preserved, company watchlist entries remain separate, and one page is created per verified opening. **Tracker Section** keeps application history first, new listings next, and company-only watchlists last when the view sorts on that property. The Role Lane property uses ML Engineering, Data Science, Applied Science, and Research.
 
-Flexible contractor work is tracked separately from the full-time pipeline. The scheduled scanner checks configured flexible-work boards and authenticated, manually vetted leads can also be added with compensation, schedule, fit notes, and caveats under **Opportunity Type: Contractor** and **Search Track: Spring 2027 Flexible Work**. Internship applications that fit alongside school can use the same track. The target is remote or Bay Area ML, data, applied AI, and research work paying at least $40/hour; roles that may exceed 20 hours per week require review, and fixed schedules above 20 hours are excluded. Flexible roles appear in their own short email section and can never enter automatic submission. This keeps side work visible without weakening the early-career requirements used for permanent roles.
+Flexible contractor work is tracked separately from the full-time pipeline. The scheduled scanner checks configured flexible-work boards and authenticated, manually vetted leads can also be added with compensation, schedule, fit notes, and caveats under **Opportunity Type: Contractor** and **Search Track: Spring 2027 Flexible Work**. Internship applications that fit alongside school can use the same track. The target is remote or Bay Area ML, data, applied AI, and research work paying at least $40/hour; roles that may exceed 20 hours per week require review, and fixed schedules above 20 hours are excluded. Flexible roles require their own verified availability and explicit application-batch approval. This keeps side work visible without weakening the early-career requirements used for permanent roles.
 
-Application support is deliberately narrow. The Ashby adapter can preview a standard form with an approved profile. Unknown questions, essays, referrals, assessments, login requirements, and uncertain submission outcomes stop the workflow for review. Submission is disabled by default and requires profile and role approval. This is a prototype for a personal workflow, not a general-purpose applicant bot.
+The [Muse setup guide](docs/muse.md) covers the private REST/OpenAPI and MCP connector, verified profile answers, separate full-time and Spring availability, and staged launch. Every application requires approval of a specific batch and resume version. New essays are drafted for user review; unknown questions, referrals, assessments, and login requirements stop for input. Muse and the optional standard-Ashby backup share a unique reservation ledger. Uncertain submissions require reconciliation, and scheduled scans never choose applications. Real Muse connection, private resume upload, and a confirmed pilot are required before full launch.
 
 ## Engineering choices
 
@@ -52,7 +56,7 @@ npm run build
 
 `npm run check` runs TypeScript validation and tests for duplicate scans, matching, Notion preservation, daylight saving time, email retries, and application holds. `npm run preview` reads public job feeds and writes a local report under ignored `reports/`. If a private Notion snapshot is absent, it treats the existing application list as empty.
 
-The example configuration is safe to publish. To deploy your own instance, replace the placeholder D1 and Notion IDs in `wrangler.jsonc`, edit the private company source list, and create the Worker secrets `ADMIN_TOKEN`, `NOTION_TOKEN`, `BREVO_API_KEY`, and `BREVO_SENDER` with `npx wrangler secret put NAME`. Create the D1 database and Queues named in the config, apply `migrations/0001.sql`, then run `npm run deploy`. The Worker starts paused with syncing, email, and submissions disabled. See the [operations guide](docs/operations.md) for the staged activation process.
+The example configuration is safe to publish. To deploy your own instance, replace the placeholder D1 and Notion IDs in `wrangler.jsonc`, edit the private company source list, and create the Worker secrets `ADMIN_TOKEN`, `NOTION_TOKEN`, `BREVO_API_KEY`, and `BREVO_SENDER` with `npx wrangler secret put NAME`. Create the D1 database and Queues named in the config, apply migrations with `npm run db:remote`, then run `npm run deploy`. The Worker starts paused with syncing, email, and submissions disabled. The Muse setup script creates a separate scoped `MUSE_TOKEN`; see the [Muse guide](docs/muse.md) and [operations guide](docs/operations.md).
 
 ## Repository layout
 

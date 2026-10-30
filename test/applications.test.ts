@@ -5,6 +5,7 @@ import { applyJob, jobFingerprint, safeApplyUrl } from "../src/applications";
 import { importPages, setSetting } from "../src/store";
 import { environment, job, profile } from "./helpers";
 import worker from "../src/worker";
+import { fingerprint, privateMaterials } from "../src/application-state";
 async function setup() {
   const e = environment();
   const j = job();
@@ -14,6 +15,7 @@ async function setup() {
   p.resumeSha256 = createHash("sha256").update("resume").digest("hex");
   await setSetting(e.env, "paused", "false");
   await setSetting(e.env, "apply_enabled", "true");
+  await setSetting(e.env, "agent_submissions_enabled", "true");
   e.db
     .prepare("INSERT INTO private_data VALUES(?,?)")
     .run("profile", JSON.stringify(p));
@@ -41,6 +43,37 @@ async function setup() {
       new Date().toISOString(),
     );
   await importPages(e.env, []);
+  const materials = await privateMaterials(e.env);
+  const snapshot = {
+    profileVersion: materials.version,
+    resumeHash: materials.resumeHash,
+    items: [
+      {
+        jobId: j.id,
+        company: j.company,
+        title: j.title,
+        url: j.url,
+        applyUrl: j.applyUrl,
+        location: j.location,
+        track: "full-time",
+        notionId: "page",
+        jobHash: await jobFingerprint(j),
+        reasons: [],
+        answers: {},
+        unresolved: [],
+        writtenAnswers: {},
+      },
+    ],
+  };
+  e.db
+    .prepare(
+      "INSERT INTO application_batches(id,request_key,snapshot,fingerprint,state,created_at) VALUES('batch','batch',?,?,'approved',?)",
+    )
+    .run(
+      JSON.stringify(snapshot),
+      await fingerprint(snapshot),
+      new Date().toISOString(),
+    );
   return { ...e, j };
 }
 function requestMock(j: ReturnType<typeof job>, stage = "To apply") {
@@ -65,9 +98,13 @@ function requestMock(j: ReturnType<typeof job>, stage = "To apply") {
     if (options?.method === "PATCH") return Response.json({ id: "page" });
     return Response.json({
       id: "page",
+      parent: { data_source_id: "data-source" },
       properties: {
         Company: { title: [{ text: { content: "Test" } }] },
-        Position: { rich_text: [] },
+        Position: {
+          rich_text: [{ text: { content: j.title, link: { url: j.url } } }],
+        },
+        Link: { url: j.url },
         Source: { rich_text: [] },
         Stage: { status: { name: stage } },
         "Automation Status": { select: { name: "Ready" } },
@@ -140,7 +177,7 @@ test("application attempt is recorded, confirmed, and never duplicated", async (
     browser = browserMock();
   try {
     globalThis.fetch = requestMock(j);
-    await applyJob(env, j.id, false, browser.launch);
+    await applyJob(env, j.id, false, browser.launch, "batch");
     assert.equal(browser.clicks, 1);
     assert.equal(
       db.prepare("SELECT state FROM attempts").get()!.state,
@@ -150,7 +187,7 @@ test("application attempt is recorded, confirmed, and never duplicated", async (
       db.prepare("SELECT automation FROM jobs").get()!.automation,
       "Submitted",
     );
-    await applyJob(env, j.id, false, browser.launch);
+    await applyJob(env, j.id, false, browser.launch, "batch");
     assert.equal(browser.clicks, 1);
     assert.ok(browser.closed);
   } finally {
@@ -164,8 +201,8 @@ test("lost confirmation is uncertain and cannot cause an automatic resubmission"
     browser = browserMock(false);
   try {
     globalThis.fetch = requestMock(j);
-    await applyJob(env, j.id, false, browser.launch);
-    await applyJob(env, j.id, false, browser.launch);
+    await applyJob(env, j.id, false, browser.launch, "batch");
+    await applyJob(env, j.id, false, browser.launch, "batch");
     assert.equal(browser.clicks, 1);
     assert.equal(
       db.prepare("SELECT state FROM attempts").get()!.state,
@@ -182,7 +219,7 @@ test("preview fills without submission, and crash reservations exhaust the daily
     browser = browserMock();
   try {
     globalThis.fetch = requestMock(j);
-    await applyJob(env, j.id, true, browser.launch);
+    await applyJob(env, j.id, true, browser.launch, "batch");
     assert.equal(browser.clicks, 0);
     assert.equal(
       db.prepare("SELECT state FROM attempts").get()!.state,
@@ -193,7 +230,7 @@ test("preview fills without submission, and crash reservations exhaust the daily
       db.prepare(
         "INSERT INTO attempts(id,job_id,state,started_at,reserved_seconds) VALUES(?,?,'preparing',?,180)",
       ).run(String(i), "other" + i, new Date().toISOString());
-    await applyJob(env, j.id, false, browser.launch);
+    await applyJob(env, j.id, false, browser.launch, "batch");
     assert.equal(browser.clicks, 0);
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM attempts").get()!.n, 3);
   } finally {
@@ -207,7 +244,7 @@ test("user stage changes prevent submission, and arbitrary hosts are rejected", 
     browser = browserMock();
   try {
     globalThis.fetch = requestMock(j, "Interview");
-    await applyJob(env, j.id, false, browser.launch);
+    await applyJob(env, j.id, false, browser.launch, "batch");
     assert.equal(browser.clicks, 0);
     assert.equal(db.prepare("SELECT COUNT(*) AS n FROM attempts").get()!.n, 0);
     assert.equal(

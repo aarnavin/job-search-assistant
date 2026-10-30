@@ -1,4 +1,4 @@
-import type { Profile } from "./types";
+import type { Profile, SearchTrack } from "./types";
 export type Field = {
   index: number;
   label: string;
@@ -105,7 +105,10 @@ export function planFields(
     blockers.push("No recognized resume upload");
   return { fills, blockers };
 }
-export function profileProblems(profile: Profile): string[] {
+export function profileProblems(
+  profile: Profile,
+  track: SearchTrack = "full-time",
+): string[] {
   const problems: string[] = [];
   if (!profile.verified)
     problems.push("Application profile has not been verified");
@@ -119,10 +122,20 @@ export function profileProblems(profile: Profile): string[] {
   ])
     if (!profile.answers[key]?.verified) problems.push(`Verify ${key}`);
   if (
-    profile.earliestStart !== "2027-06-01" ||
-    profile.answers.earliestStart?.value !== "2027-06-01"
+    track === "full-time" &&
+    (profile.earliestStart !== "2027-06-01" ||
+      profile.answers.earliestStart?.value !== "2027-06-01")
   )
     problems.push("Availability must match June 1, 2027");
+  if (track === "spring-flex") {
+    if (!/^2027-0[1-5]-\d{2}$/.test(profile.earliestStart))
+      problems.push("Verify the exact Spring 2027 start date");
+    if (
+      !profile.answers.weeklyHours?.verified ||
+      !/^10\s*[-–]\s*20$/.test(profile.answers.weeklyHours.value)
+    )
+      problems.push("Verify Spring availability of 10–20 hours per week");
+  }
   if (!/^[a-f0-9]{64}$/i.test(profile.resumeSha256))
     problems.push("Approved resume fingerprint missing");
   return problems;

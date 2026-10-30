@@ -1,6 +1,9 @@
 import type { launch as Launch } from "@cloudflare/playwright";
 import { planFields, profileProblems, type Field } from "./forms";
-import { rank } from "./matching";
+import { rank, rankFlexible } from "./matching";
+import { checkedBatchItem } from "./agent";
+import { claimApplication, jobFingerprint } from "./application-state";
+export { jobFingerprint } from "./application-state";
 import { Notion, fromPage } from "./notion";
 import { fetchJobs } from "./sources";
 import { event, jobRow, lock, referralHold, setting, unlock } from "./store";
@@ -68,29 +71,36 @@ async function hold(
     await notion.note(pageId, reason);
   }
 }
-export async function jobFingerprint(job: Job) {
-  const bytes = await crypto.subtle.digest(
-    "SHA-256",
-    new TextEncoder().encode(
-      JSON.stringify([job.title, job.description, job.location, job.applyUrl]),
-    ),
-  );
-  return Array.from(new Uint8Array(bytes))
-    .map((n) => n.toString(16).padStart(2, "0"))
-    .join("");
-}
 export async function applyJob(
   env: Env,
   id: string,
   dryRun = false,
   browserLauncher?: typeof Launch,
+  batchId?: string,
 ) {
   if ((await setting(env, "paused")) === "true") return;
-  if (!dryRun && (await setting(env, "apply_enabled")) !== "true") return;
+  if (!dryRun && (await setting(env, "agent_submissions_enabled")) !== "true")
+    return;
   const row = await jobRow(env, id);
   if (!row || !row.notion_id || !row.open) return;
+  if (!batchId)
+    return hold(
+      env,
+      id,
+      row.notion_id,
+      "Backup requires an explicitly approved application batch",
+    );
+  let approved: Awaited<ReturnType<typeof checkedBatchItem>>;
+  try {
+    approved = await checkedBatchItem(env, batchId, id);
+  } catch (e) {
+    return hold(env, id, row.notion_id, (e as Error).message);
+  }
+  const pilot = await setting(env, "agent_pilot_job", "");
+  if (!dryRun && pilot && pilot !== id)
+    return hold(env, id, row.notion_id, "Only the pilot job may be submitted");
   const job: Job = JSON.parse(row.data),
-    fit = rank(job);
+    fit = approved.item.track === "spring-flex" ? rankFlexible(job) : rank(job);
   if (
     fit.label !== "Strong" ||
     !fit.bayArea ||
@@ -116,11 +126,8 @@ export async function applyJob(
       row.notion_id,
       "Approved profile and resume are not configured",
     );
-  const profile: Profile = JSON.parse(profileRecord.data);
-  const issues = [
-    ...profileProblems(profile),
-    ...qualificationHolds(job, profile),
-  ];
+  const profile: Profile = approved.profile;
+  const issues = [...profileProblems(profile, approved.item.track)];
   if (
     profile.approvedJobIds.includes(id) &&
     profile.approvedJobHashes?.[id] !== (await jobFingerprint(job))
@@ -188,7 +195,7 @@ export async function applyJob(
   try {
     const day = started.slice(0, 10);
     const budget = await env.DB.prepare(
-      "SELECT COUNT(*) AS count,COALESCE(SUM(reserved_seconds),0) AS seconds FROM attempts WHERE substr(started_at,1,10)=?",
+      "SELECT COUNT(*) AS count,COALESCE(SUM(reserved_seconds),0) AS seconds FROM attempts WHERE runner='backup' AND substr(started_at,1,10)=?",
     )
       .bind(day)
       .first<{ count: number; seconds: number }>();
@@ -206,12 +213,9 @@ export async function applyJob(
         .first()
     )
       return;
-    attemptId = crypto.randomUUID();
-    await env.DB.prepare(
-      "INSERT INTO attempts(id,job_id,state,started_at,reserved_seconds) VALUES(?,?,'preparing',?,180)",
-    )
-      .bind(attemptId, id, started)
-      .run();
+    attemptId =
+      (await claimApplication(env, job, "backup", batchId)) ?? undefined;
+    if (!attemptId) return;
     const launchBrowser =
       browserLauncher ?? (await import("@cloudflare/playwright")).launch;
     browser = await launchBrowser(env.BROWSER, { keep_alive: 180000 });
@@ -340,7 +344,7 @@ export async function applyJob(
         latest.archived ||
         latest.in_trash ||
         (await setting(env, "paused")) === "true" ||
-        (await setting(env, "apply_enabled")) !== "true"
+        (await setting(env, "agent_submissions_enabled")) !== "true"
       )
         throw new Error("Application paused or Notion status changed");
       if (
@@ -349,6 +353,7 @@ export async function applyJob(
         )
       )
         throw new Error("Notion automation is on hold");
+      await checkedBatchItem(env, batchId, id);
       await env.DB.prepare("UPDATE attempts SET state='submitting' WHERE id=?")
         .bind(attemptId)
         .run();

@@ -113,10 +113,15 @@ export async function syncJob(env: Env, id: string) {
   const source: Source | undefined = sourceRow
     ? JSON.parse(sourceRow.data)
     : undefined;
-  const currentFit =
-    source?.track === "spring-flex"
-      ? rankFlexible(JSON.parse(row.data))
-      : rank(JSON.parse(row.data));
+  const agentReview = await env.DB.prepare(
+    "SELECT track FROM agent_postings WHERE job_id=?",
+  )
+    .bind(id)
+    .first<{ track: string }>();
+  const spring = (agentReview?.track ?? source?.track) === "spring-flex";
+  const currentFit = spring
+    ? rankFlexible(JSON.parse(row.data))
+    : rank(JSON.parse(row.data));
   if (!currentFit.earlyCareerVerified || currentFit.label === "Skip") return;
   const owner = await lock(env, `sync:${id}`);
   if (!owner) return;
@@ -160,21 +165,20 @@ export async function syncJob(env: Env, id: string) {
       .bind(id)
       .run();
     const notion = new Notion(env);
-    const page =
-      source?.track === "spring-flex"
-        ? await notion.createFlexible(
-            job,
-            currentFit,
-            row.first_seen,
-            `Job identity: ${id}`,
-          )
-        : await notion.create(
-            job,
-            currentFit,
-            row.first_seen,
-            !!row.baseline,
-            `Job identity: ${id}`,
-          );
+    const page = spring
+      ? await notion.createFlexible(
+          job,
+          currentFit,
+          row.first_seen,
+          `Job identity: ${id}`,
+        )
+      : await notion.create(
+          job,
+          currentFit,
+          row.first_seen,
+          !!row.baseline,
+          `Job identity: ${id}`,
+        );
     await env.DB.prepare(
       "UPDATE sync_writes SET state='created',page_id=? WHERE job_id=?",
     )

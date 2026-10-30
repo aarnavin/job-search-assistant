@@ -1,11 +1,13 @@
 import { DatabaseSync } from "node:sqlite";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import type { Env, Task, Job, Profile } from "../src/types";
 export function database() {
   const db = new DatabaseSync(":memory:");
-  db.exec(
-    readFileSync(new URL("../migrations/0001.sql", import.meta.url), "utf8"),
-  );
+  const migrations = new URL("../migrations/", import.meta.url);
+  for (const file of readdirSync(migrations)
+    .filter((f) => f.endsWith(".sql"))
+    .sort())
+    db.exec(readFileSync(new URL(file, migrations), "utf8"));
   const api = {
     prepare(sql: string) {
       let args: any[] = [];

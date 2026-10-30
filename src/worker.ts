@@ -7,6 +7,9 @@ import { scan, syncJob } from "./pipeline";
 import { duplicate, event, importPages, setSetting, setting } from "./store";
 import { profileProblems } from "./forms";
 import { identities } from "./identity";
+import { connectorFetch } from "./connector";
+import { AgentError, configureAgent } from "./agent";
+import { expireMuseAttempts } from "./application-state";
 import {
   archiveUnverified,
   cleanupPreview,
@@ -60,7 +63,7 @@ export async function handleTask(env: Env, task: Task) {
     case "sync":
       return syncJob(env, task.jobId);
     case "apply":
-      return applyJob(env, task.jobId, task.dryRun);
+      return applyJob(env, task.jobId, task.dryRun, undefined, task.batchId);
     case "categorize":
       return new Notion(env).setLane(task.pageId, task.lane);
     case "organize":
@@ -73,6 +76,7 @@ export async function handleTask(env: Env, task: Task) {
 }
 export async function scheduled(env: Env, cron: string) {
   if ((await setting(env, "paused")) === "true") return;
+  await expireMuseAttempts(env);
   if (cron === "17 */6 * * *") {
     // Refresh user decisions before adding or applying to any discovered opening.
     try {
@@ -89,19 +93,13 @@ export async function scheduled(env: Env, cron: string) {
         await env.TASKS.send({ type: "scan", sourceId: s.id });
   } else {
     await env.TASKS.send({ type: "digest" });
-    if ((await setting(env, "apply_enabled")) === "true") {
-      const imported = await setting(env, "imported_at", "");
-      if (!imported || Date.now() - Date.parse(imported) > 7 * 3600000) return;
-      const candidates = await env.DB.prepare(
-        "SELECT id FROM jobs WHERE fit='Strong' AND open=1 AND notion_id IS NOT NULL AND automation IN ('Ready','Review') AND source_id NOT IN (SELECT id FROM sources WHERE json_extract(data,'$.track')='spring-flex') AND NOT EXISTS(SELECT 1 FROM attempts WHERE attempts.job_id=jobs.id) ORDER BY baseline ASC,first_seen DESC LIMIT 3",
-      ).all<{ id: string }>();
-      for (const j of candidates.results)
-        await env.TASKS.send({ type: "apply", jobId: j.id });
-    }
+    // Muse owns explicit batch instructions. Scheduled tasks never choose applications.
   }
 }
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (new URL(request.url).pathname.startsWith("/agent/"))
+      return connectorFetch(request, env);
     if (!(await auth(request, env)))
       return json({ error: "Unauthorized" }, 401);
     const path = new URL(request.url).pathname;
@@ -231,6 +229,8 @@ export default {
         );
       if (request.method !== "POST") return json({ error: "Not found" }, 404);
       const body = (await request.json()) as any;
+      if (path === "/agent-config")
+        return json(await configureAgent(env, body));
       if (path === "/maintenance") {
         if (body.action === "reclassify")
           return json(await reclassifyJobs(env));
@@ -532,10 +532,15 @@ export default {
           await env.TASKS.send({ type: "sync", jobId: row.id });
         } else if (body.type === "digest")
           await env.TASKS.send({ type: "digest" });
-        else if (body.type === "apply" && typeof body.jobId === "string")
+        else if (
+          body.type === "apply" &&
+          typeof body.jobId === "string" &&
+          typeof body.batchId === "string"
+        )
           await env.TASKS.send({
             type: "apply",
             jobId: body.jobId,
+            batchId: body.batchId,
             dryRun: body.dryRun !== false,
           });
         else return json({ error: "Unsupported task" }, 400);
@@ -574,7 +579,7 @@ export default {
             );
           // Keep the reservation for daily accounting, release only the job-specific uniqueness key.
           await env.DB.prepare(
-            "UPDATE attempts SET job_id=job_id || ':history:' || id WHERE job_id=?",
+            "UPDATE attempts SET job_id=job_id || ':history:' || id,identity=NULL WHERE job_id=?",
           )
             .bind(body.jobId)
             .run();
@@ -628,7 +633,7 @@ export default {
     } catch (e) {
       return json(
         { error: e instanceof Error ? e.message : "Request failed" },
-        500,
+        e instanceof AgentError ? e.status : 500,
       );
     }
   },

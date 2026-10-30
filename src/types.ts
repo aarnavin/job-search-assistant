@@ -66,11 +66,21 @@ export type Profile = {
   approvedJobIds: string[];
   approvedJobHashes?: Record<string, string>;
   skills: string[];
+  availability?: Partial<
+    Record<
+      SearchTrack,
+      {
+        earliestStart: Answer;
+        weeklyHours?: Answer;
+      }
+    >
+  >;
 };
+export type SearchTrack = "full-time" | "spring-flex";
 export type Task =
   | { type: "scan"; sourceId: string }
   | { type: "sync"; jobId: string }
-  | { type: "apply"; jobId: string; dryRun?: boolean }
+  | { type: "apply"; jobId: string; dryRun?: boolean; batchId?: string }
   | { type: "categorize"; pageId: string; lane: string }
   | { type: "organize"; pageId: string; section: TrackerSection }
   | { type: "digest" }
@@ -83,6 +93,7 @@ export interface Env {
   NOTION_DATA_SOURCE_ID: string;
   NOTION_TEMPLATE_ID: string;
   ADMIN_TOKEN?: string;
+  MUSE_TOKEN?: string;
   BREVO_API_KEY?: string;
   BREVO_SENDER?: string;
   DIGEST_EMAIL: string;

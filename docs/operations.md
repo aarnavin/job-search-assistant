@@ -17,6 +17,6 @@ For a reviewed opening from an initial board scan, use the individual sync-job a
 
 The scheduled digest sends once per Pacific local day at or after 8 a.m. A timeout after the email API call is marked uncertain because delivery may have succeeded. Check Brevo before retrying. Feed errors are visible in `status`; an incomplete scan never closes jobs.
 
-Application automation stays disabled until a profile has been fact-checked and an individual role reviewed. `fill-preview JOB_ID` fills a supported Ashby form without submitting. An uncertain submission must be reconciled manually before any retry. `pause` stops new processing; a queued application also checks pause immediately before submission.
+Application processing follows the [Muse batch workflow](muse.md). Scheduled work never selects applications. The optional backup requires an approved batch: `fill-preview JOB_ID BATCH_ID` fills a supported Ashby form without submitting; `apply JOB_ID --submit BATCH_ID` explicitly requests a submission after launch gates pass. An uncertain submission must be reconciled manually before any retry. `pause` stops new processing; a queued application also checks pause immediately before submission. The legacy `apply_enabled` switch no longer authorizes applications.
 
 The protected Worker routes require `Authorization: Bearer ADMIN_TOKEN`; a direct browser visit without that header returns `Unauthorized`. Admin commands are local conveniences, not a public dashboard. Notion is the daily interface.

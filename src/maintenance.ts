@@ -1,15 +1,17 @@
 import type { Env, Existing, Job, JobRow } from "./types";
 import { Notion, fromPage } from "./notion";
 import { identities } from "./identity";
-import { rank } from "./matching";
+import { rank, rankFlexible } from "./matching";
 import { event } from "./store";
 
-type Tracked = Pick<JobRow, "id" | "data" | "notion_id" | "open">;
+type Tracked = Pick<JobRow, "id" | "data" | "notion_id" | "open"> & {
+  track?: string;
+};
 
 async function trackedJobs(env: Env): Promise<Tracked[]> {
   return (
     await env.DB.prepare(
-      "SELECT id,data,notion_id,open FROM jobs",
+      "SELECT jobs.id,jobs.data,jobs.notion_id,jobs.open,COALESCE(agent_postings.track,json_extract(sources.data,'$.track'),'full-time') AS track FROM jobs LEFT JOIN agent_postings ON agent_postings.job_id=jobs.id LEFT JOIN sources ON sources.id=jobs.source_id",
     ).all<Tracked>()
   ).results;
 }
@@ -44,7 +46,10 @@ export function assessListing(page: Existing, jobs: Tracked[]) {
       action: "archive" as const,
       reason: "No employer posting with verified early-career requirements",
     };
-  const fit = rank(JSON.parse(row.data));
+  const fit =
+    row.track === "spring-flex"
+      ? rankFlexible(JSON.parse(row.data))
+      : rank(JSON.parse(row.data));
   if (!row.open)
     return { action: "archive" as const, reason: "Employer posting is closed" };
   if (fit.label === "Skip" || !fit.earlyCareerVerified)
@@ -63,7 +68,10 @@ export async function reclassifyJobs(env: Env) {
   const counts = { Strong: 0, Possible: 0, Skip: 0 };
   for (let start = 0; start < rows.length; start += 40) {
     const writes = rows.slice(start, start + 40).map((row) => {
-      const fit = rank(JSON.parse(row.data));
+      const fit =
+        row.track === "spring-flex"
+          ? rankFlexible(JSON.parse(row.data))
+          : rank(JSON.parse(row.data));
       counts[fit.label]++;
       return env.DB.prepare("UPDATE jobs SET fit=?,reasons=? WHERE id=?").bind(
         fit.label,
